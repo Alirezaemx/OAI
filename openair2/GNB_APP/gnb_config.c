@@ -1127,9 +1127,9 @@ void RCconfig_NRRRC(MessageDef *msg_p, uint32_t i, gNB_RRC_INST *rrc) {
     sprintf(aprefix, "%s.[%i]", GNB_CONFIG_STRING_GNB_LIST, 0);
 
     config_getlist(&SCCsParamList, NULL, 0, aprefix);
-    if (SCCsParamList.numelt > 0) {    
-      sprintf(aprefix, "%s.[%i].%s.[%i]", GNB_CONFIG_STRING_GNB_LIST,0,GNB_CONFIG_STRING_SERVINGCELLCONFIGCOMMON, 0);
-      config_get( SCCsParams,sizeof(SCCsParams)/sizeof(paramdef_t),aprefix);  
+    if (SCCsParamList.numelt > 0) {
+      sprintf(aprefix, "%s.[%i].%s.[%i]", GNB_CONFIG_STRING_GNB_LIST, i, GNB_CONFIG_STRING_SERVINGCELLCONFIGCOMMON, 0);
+      config_get(SCCsParams, sizeof(SCCsParams) / sizeof(paramdef_t), aprefix);
       LOG_I(RRC,"Read in ServingCellConfigCommon (PhysCellId %d, ABSFREQSSB %d, DLBand %d, ABSFREQPOINTA %d, DLBW %d,RACH_TargetReceivedPower %d\n",
 	    (int)*scc->physCellId,
 	    (int)*scc->downlinkConfigCommon->frequencyInfoDL->absoluteFrequencySSB,
@@ -1184,9 +1184,10 @@ void RCconfig_NRRRC(MessageDef *msg_p, uint32_t i, gNB_RRC_INST *rrc) {
       rrc->sctp_out_streams                      = (uint16_t)*(SCTPParams[GNB_SCTP_OUTSTREAMS_IDX].uptr);
     }
 
-   
 
-    rrc->nr_cellid        = (uint64_t)*(GNBParamList.paramarray[i][GNB_NRCELLID_IDX].u64ptr);
+
+    rrc->f1_instance = -1;
+    rrc->nr_cellid = (uint64_t) * (GNBParamList.paramarray[i][GNB_NRCELLID_IDX].u64ptr);
     rrc->carrier.physCellId = *scc->physCellId;
 
     rrc->um_on_default_drb = *(GNBParamList.paramarray[i][GNB_UMONDEFAULTDRB_IDX].uptr);
@@ -1843,8 +1844,8 @@ int RCconfig_NR_DU_F1(MessageDef *msg_p, uint32_t i) {
         f1Setup->DU_f1_ip_address.ipv4 = 1;
         //strcpy(f1Setup->DU_f1_ip_address.ipv6_address, "");
         strcpy(f1Setup->DU_f1_ip_address.ipv4_address, RC.nrmac[k]->eth_params_n.my_addr);
-	f1Setup->DUport= RC.nrmac[k]->eth_params_n.my_portd;
-	f1Setup->CUport= RC.nrmac[k]->eth_params_n.remote_portd;
+        f1Setup->DUport= RC.nrmac[k]->eth_params_n.my_portd;
+        f1Setup->CUport= RC.nrmac[k]->eth_params_n.remote_portd;
         //strcpy(f1Setup->CU_ip_address[l].ipv6_address,*(F1ParamList.paramarray[l][ENB_CU_IPV6_ADDRESS_IDX].strptr));
         sprintf(aprefix,"%s.[%i].%s",GNB_CONFIG_STRING_GNB_LIST,k,GNB_CONFIG_STRING_SCTP_CONFIG);
         config_get(SCTPParams,sizeof(SCTPParams)/sizeof(paramdef_t),aprefix);
@@ -2195,10 +2196,10 @@ ngran_node_t get_node_type(void)
 
   config_getlist( &GNBParamList,GNBParams,sizeof(GNBParams)/sizeof(paramdef_t),NULL);
 
-  if (GNBParamList.numelt == 0) // We have no valid configuration, let's return a default 
+  if (GNBParamList.numelt == 0) // We have no valid configuration, let's return a default
     return ngran_gNB;
-  
-  config_getlist( &MacRLC_ParamList,MacRLC_Params,sizeof(MacRLC_Params)/sizeof(paramdef_t), NULL);   
+
+  config_getlist( &MacRLC_ParamList,MacRLC_Params,sizeof(MacRLC_Params)/sizeof(paramdef_t), NULL);
   char aprefix[MAX_OPTNAME_SIZE*2 + 8];
   sprintf(aprefix, "%s.[%i]", GNB_CONFIG_STRING_GNB_LIST, 0);
   config_getlist( &GNBE1ParamList, GNBE1Params, sizeof(GNBE1Params)/sizeof(paramdef_t), aprefix);
