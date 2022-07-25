@@ -159,6 +159,26 @@ static void nr_rrc_addmod_drbs(int rnti,
 ///---------------------------------------------------------------------------------------------------------------///
 ///---------------------------------------------------------------------------------------------------------------///
 
+static instance_t get_instance_by_NR_cellid(uint64_t nr_cellid)
+{
+  for (int i = 0; i < RC.nb_nr_inst; i++) {
+    if (RC.nrrrc[i] && RC.nrrrc[i]->nr_cellid == nr_cellid) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+static instance_t get_instance_by_F1_instance(instance_t f1_instance)
+{
+  for (int i = 0; i < RC.nb_nr_inst; i++) {
+    if (RC.nrrrc[i] && RC.nrrrc[i]->f1_instance == f1_instance) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 static void init_NR_SI(gNB_RRC_INST *rrc, gNB_RrcConfigurationReq *configuration)
 {
 
@@ -384,7 +404,12 @@ static void rrc_gNB_generate_RRCSetup(instance_t instance,
     .rnti = ue_p->rnti,
     .srb_id = CCCH
   };
-  rrc->mac_rrc.dl_rrc_message_transfer(instance, &dl_rrc);
+
+  int i = instance;
+  if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+    i = RC.nrrrc[instance]->f1_instance;
+  }
+  rrc->mac_rrc.dl_rrc_message_transfer(i, &dl_rrc);
 }
 
 //-----------------------------------------------------------------------------
@@ -2243,21 +2268,18 @@ void rrc_gNB_process_f1_setup_req(f1ap_setup_req_t *f1_setup_req, instance_t ins
 void rrc_gNB_process_initial_ul_rrc_message(const f1ap_initial_ul_rrc_message_t *ul_rrc)
 {
   // first get RRC instance (note, no the ITTI instance)
-  module_id_t i = 0;
-  for (i=0; i < RC.nb_nr_inst; i++) {
-    gNB_RRC_INST *rrc = RC.nrrrc[i];
-    if (rrc->nr_cellid == ul_rrc->nr_cellid)
-      break;
-  }
+  module_id_t module_id = get_instance_by_NR_cellid(ul_rrc->nr_cellid);
+
   //AssertFatal(i != RC.nb_nr_inst, "Cell_id not found\n");
   // TODO REMOVE_DU_RRC in monolithic mode, the MAC does not have the
   // nr_cellid. Thus, the above check would fail. For the time being, just put
   // a warning, as we handle one DU only anyway
-  if (i == RC.nb_nr_inst) {
-    i = 0;
+  if (module_id >= RC.nb_nr_inst) {
+    module_id = 0;
     LOG_W(RRC, "initial UL RRC message nr_cellid %ld does not match RRC's %ld\n", ul_rrc->nr_cellid, RC.nrrrc[0]->nr_cellid);
   }
-  nr_rrc_gNB_decode_ccch(i, ul_rrc->crnti, ul_rrc->rrc_container, ul_rrc->rrc_container_length, ul_rrc->du2cu_rrc_container, ul_rrc->du2cu_rrc_container_length);
+
+  nr_rrc_gNB_decode_ccch(module_id, ul_rrc->crnti, ul_rrc->rrc_container, ul_rrc->rrc_container_length, ul_rrc->du2cu_rrc_container, ul_rrc->du2cu_rrc_container_length);
 
   if (ul_rrc->rrc_container)
     free(ul_rrc->rrc_container);
@@ -2338,7 +2360,7 @@ static void rrc_CU_process_ue_context_release_complete(MessageDef *msg_p)
 static void rrc_CU_process_ue_context_modification_response(MessageDef *msg_p, instance_t instance)
 {
   f1ap_ue_context_modif_resp_t *resp = &F1AP_UE_CONTEXT_MODIFICATION_RESP(msg_p);
-  protocol_ctxt_t ctxt = {.rntiMaybeUEid = resp->rnti, .module_id = instance, .instance = instance, .enb_flag = 1, .eNB_index = instance};
+  protocol_ctxt_t ctxt = {.rntiMaybeUEid = resp->rnti, .module_id = instance, .instance = RC.nrrrc[instance]->f1_instance, .enb_flag = 1, .eNB_index = instance};
   gNB_RRC_INST *rrc = RC.nrrrc[ctxt.module_id];
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context_by_rnti(rrc, resp->rnti);
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
@@ -2746,19 +2768,24 @@ void *rrc_gnb_task(void *args_p) {
 
       /* Messages from PDCP */
       case F1AP_UL_RRC_MESSAGE:
+        if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+          instance = get_instance_by_F1_instance(instance);
+        }
         PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt,
                                       instance,
                                       GNB_FLAG_YES,
                                       F1AP_UL_RRC_MESSAGE(msg_p).rnti,
                                       0,
                                       0);
-        LOG_D(NR_RRC,
-              "Decoding DCCH %d: ue %04lx, inst %ld, ctxt %p, size %d\n",
-              F1AP_UL_RRC_MESSAGE(msg_p).srb_id,
-              ctxt.rntiMaybeUEid,
-              instance,
-              &ctxt,
-              F1AP_UL_RRC_MESSAGE(msg_p).rrc_container_length);
+        if (NODE_IS_CU(RC.nrrrc[ctxt.module_id]->node_type)) {
+          ctxt.instance = RC.nrrrc[ctxt.module_id]->f1_instance;
+        }
+        LOG_D(NR_RRC,"Decoding DCCH %d: ue %04lx, inst %ld, ctxt %p, size %d\n",
+                F1AP_UL_RRC_MESSAGE(msg_p).srb_id,
+                ctxt.rntiMaybeUEid,
+                instance,
+                &ctxt,
+                F1AP_UL_RRC_MESSAGE(msg_p).rrc_container_length);
         rrc_gNB_decode_dcch(&ctxt,
                             F1AP_UL_RRC_MESSAGE(msg_p).srb_id,
                             F1AP_UL_RRC_MESSAGE(msg_p).rrc_container,
@@ -2767,10 +2794,16 @@ void *rrc_gnb_task(void *args_p) {
         break;
 
       case NGAP_DOWNLINK_NAS:
+        if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+          instance = get_instance_by_F1_instance(instance);
+        }
         rrc_gNB_process_NGAP_DOWNLINK_NAS(msg_p, instance, &rrc_gNB_mui);
         break;
 
       case NGAP_PDUSESSION_SETUP_REQ:
+        if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+          instance = get_instance_by_F1_instance(instance);
+        }
         rrc_gNB_process_NGAP_PDUSESSION_SETUP_REQ(msg_p, instance);
         break;
 
@@ -2789,15 +2822,23 @@ void *rrc_gnb_task(void *args_p) {
 
       /* Messages from F1AP task */
       case F1AP_SETUP_REQ:
+        ctxt.module_id = get_instance_by_NR_cellid(F1AP_SETUP_REQ(msg_p).cell[0].nr_cellid);
+        RC.nrrrc[ctxt.module_id]->f1_instance = instance;
         AssertFatal(NODE_IS_CU(RC.nrrrc[instance]->node_type), "should not receive F1AP_SETUP_REQUEST, need call by CU!\n");
-        rrc_gNB_process_f1_setup_req(&F1AP_SETUP_REQ(msg_p));
+        rrc_gNB_process_f1_setup_req(&F1AP_SETUP_REQ(msg_p), ctxt.module_id);
         break;
 
       case F1AP_UE_CONTEXT_SETUP_RESP:
+        if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+          instance = get_instance_by_F1_instance(instance);
+        }
         rrc_CU_process_ue_context_setup_response(msg_p, instance);
         break;
 
       case F1AP_UE_CONTEXT_MODIFICATION_RESP:
+        if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+          instance = get_instance_by_F1_instance(instance);
+        }
         rrc_CU_process_ue_context_modification_response(msg_p, instance);
         break;
 
@@ -2820,6 +2861,9 @@ void *rrc_gnb_task(void *args_p) {
         break;
 
       case NGAP_INITIAL_CONTEXT_SETUP_REQ:
+        if (NODE_IS_CU(RC.nrrrc[instance]->node_type)) {
+          instance = get_instance_by_F1_instance(instance);
+        }
         rrc_gNB_process_NGAP_INITIAL_CONTEXT_SETUP_REQ(msg_p, instance);
         break;
 
