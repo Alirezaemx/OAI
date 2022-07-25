@@ -1330,6 +1330,22 @@ static void rrc_ue_generate_RRCSetupComplete(
   nr_pdcp_data_req_srb(ctxt_pP->rntiMaybeUEid, DCCH, nr_rrc_mui++, size, buffer, deliver_pdu_srb_rlc, NULL);
 }
 
+static void rrc_ue_generate_measurementReport(const protocol_ctxt_t *ctxt_pP, const uint8_t gNB_index)
+{
+  uint8_t buffer[100];
+
+  if (NR_UE_rrc_inst[ctxt_pP->module_id].measurementReport == NULL) {
+    NR_UE_rrc_inst[ctxt_pP->module_id].measurementReport = calloc(1, sizeof(struct NR_MeasurementReport));
+  }
+
+  uint8_t size = do_nrMeasurementReport_SA(NR_UE_rrc_inst[ctxt_pP->module_id].measurementReport,
+                                           &NR_UE_rrc_inst[ctxt_pP->module_id].l3_measurements,
+                                           buffer,
+                                           sizeof(buffer));
+
+  nr_pdcp_data_req_srb(ctxt_pP->rntiMaybeUEid, DCCH, nr_rrc_mui++, size, buffer, deliver_pdu_srb_rlc, NULL);
+}
+
 int8_t nr_rrc_ue_decode_ccch( const protocol_ctxt_t *const ctxt_pP, const NR_SRB_INFO *const Srb_info, const uint8_t gNB_index ){
 
   NR_DL_CCCH_Message_t *dl_ccch_msg=NULL;
@@ -2283,6 +2299,7 @@ void nr_rrc_handle_timers(unsigned int mod_id)
 }
 
 
+int number_of_received_meas = 0;
 void *rrc_nrue_task(void *args_p)
 {
    MessageDef *msg_p;
@@ -2326,7 +2343,22 @@ void *rrc_nrue_task(void *args_p)
                                                   NR_RRC_MAC_BCCH_DATA_IND (msg_p).rsrq,
                                                   NR_RRC_MAC_BCCH_DATA_IND (msg_p).rsrp);
          break;
+       case NR_RRC_MAC_MEAS_DATA_IND:
 
+         LOG_I(NR_RRC, "[gNB %i, count %i] Received measurements: CQI = %i\n",
+               NR_RRC_MAC_MEAS_DATA_IND(msg_p).gnb_index,
+               number_of_received_meas,
+               NR_RRC_MAC_MEAS_DATA_IND(msg_p).cqi);
+
+         // FIXME: Add a correct criterion
+         if (number_of_received_meas == 50) {
+           rrc_ue_generate_measurementReport(&ctxt, NR_RRC_MAC_MEAS_DATA_IND(msg_p).gnb_index);
+           number_of_received_meas = 0;
+         }
+
+         number_of_received_meas++;
+
+         break;
        case NR_RRC_MAC_CCCH_DATA_IND:
          LOG_D(NR_RRC, "[UE %d] RNTI %x Received %s: frameP %d, gNB %d\n",
                ue_mod_id,
