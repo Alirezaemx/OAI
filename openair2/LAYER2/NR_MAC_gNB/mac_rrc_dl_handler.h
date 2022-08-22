@@ -25,7 +25,7 @@
 #include "platform_types.h"
 #include "f1ap_messages_types.h"
 
-void ue_context_setup_request(const f1ap_ue_context_setup_t *req);
+void ue_context_setup_request(instance_t instance, const f1ap_ue_context_setup_t *req);
 void ue_context_modification_request(const f1ap_ue_context_modif_req_t *req);
 void ue_context_release_command(const f1ap_ue_context_release_cmd_t *cmd);
 
