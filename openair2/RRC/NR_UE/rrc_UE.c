@@ -1346,8 +1346,8 @@ static void rrc_ue_generate_measurementReport(const protocol_ctxt_t *ctxt_pP, co
   nr_pdcp_data_req_srb(ctxt_pP->rntiMaybeUEid, DCCH, nr_rrc_mui++, size, buffer, deliver_pdu_srb_rlc, NULL);
 }
 
-int8_t nr_rrc_ue_decode_ccch( const protocol_ctxt_t *const ctxt_pP, const NR_SRB_INFO *const Srb_info, const uint8_t gNB_index ){
-
+int8_t nr_rrc_ue_decode_ccch(protocol_ctxt_t *ctxt_pP, const NR_SRB_INFO *const Srb_info, const uint8_t gNB_index)
+{
   NR_DL_CCCH_Message_t *dl_ccch_msg=NULL;
   asn_dec_rval_t dec_rval;
   int rval=0;
@@ -2080,11 +2080,7 @@ nr_rrc_ue_establish_srb2(
    LOG_I(NR_RRC,"[UE %d] State = NR_RRC_CONNECTED (gNB %d)\n", ctxt_pP->module_id, gNB_index);
  }
 
- //-----------------------------------------------------------------------------
- static void rrc_ue_process_rrcReconfiguration(const protocol_ctxt_t *const  ctxt_pP,
-                                               NR_RRCReconfiguration_t *rrcReconfiguration,
-                                               uint8_t gNB_index)
- //-----------------------------------------------------------------------------
+ static void rrc_ue_process_rrcReconfiguration(protocol_ctxt_t *ctxt_pP, NR_RRCReconfiguration_t *rrcReconfiguration, uint8_t gNB_index)
  {
    LOG_I(NR_RRC, "[UE %d] Frame %d: Receiving from SRB1 (DL-DCCH), Processing RRCReconfiguration (gNB %d)\n",
        ctxt_pP->module_id, ctxt_pP->frame, gNB_index);
@@ -2152,16 +2148,7 @@ nr_rrc_ue_establish_srb2(
  }
 
  // from NR SRB1
- //-----------------------------------------------------------------------------
- int
- nr_rrc_ue_decode_dcch(
-   const protocol_ctxt_t *const ctxt_pP,
-   const srb_id_t               Srb_id,
-   const uint8_t         *const Buffer,
-   size_t                       Buffer_size,
-   const uint8_t                gNB_indexP
- )
- //-----------------------------------------------------------------------------
+ int nr_rrc_ue_decode_dcch(protocol_ctxt_t *ctxt_pP, const srb_id_t Srb_id, const uint8_t *const Buffer, size_t Buffer_size, const uint8_t gNB_indexP)
  {
    asn_dec_rval_t                      dec_rval;
    NR_DL_DCCH_Message_t                *dl_dcch_msg  = NULL;
