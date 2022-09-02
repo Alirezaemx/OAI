@@ -182,6 +182,6 @@ rrc_gNB_ue_context_t *rrc_gNB_create_ue_context(rnti_t rnti, gNB_RRC_INST *rrc_i
   ue_context_p->ue_context.rnti = rnti;
   ue_context_p->ue_context.random_ue_identity = ue_identityP;
   RB_INSERT(rrc_nr_ue_tree_s, &rrc_instance_pP->rrc_ue_head, ue_context_p);
-  LOG_W(NR_RRC, " Created new UE context rnti: %04x, random ue id %lx, RRC ue id %u\n", rnti, ue_identityP, ue_context_p->ue_context.gNB_ue_ngap_id);
+  LOG_W(NR_RRC, "Created new UE context rnti: %04x, random ue id %lx, RRC ue id %u\n", rnti, ue_identityP, ue_context_p->ue_context.gNB_ue_ngap_id);
   return ue_context_p;
 }

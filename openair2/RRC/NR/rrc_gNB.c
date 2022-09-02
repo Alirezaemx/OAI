@@ -2550,11 +2550,39 @@ void rrc_gNB_process_dc_overall_timeout(const module_id_t gnb_mod_idP, x2ap_ENDC
   rrc_remove_nsa_user(rrc, m->rnti);
 }
 
+struct rrc_gNB_ue_context_s *find_ho_ue_context_in_source(uint8_t modid_t, uint8_t *modid_s, uint8_t *ho_idx)
+{
+  for (int ho_id = 0; ho_id < NUMBER_OF_DU_PER_CU_MAX; ho_id++) {
+    if (ho_rnti_map[ho_id][3] == modid_t) {
+      if (modid_s != NULL) {
+        *modid_s = ho_rnti_map[ho_id][1];
+      }
+      if (ho_idx != NULL) {
+        *ho_idx = ho_id;
+      }
+      return rrc_gNB_get_ue_context_by_rnti(RC.nrrrc[ho_rnti_map[ho_id][1]], ho_rnti_map[ho_id][0]);
+    }
+  }
+  return NULL;
+}
+
 static void rrc_CU_process_ue_context_setup_response(MessageDef *msg_p, instance_t instance)
 {
   f1ap_ue_context_setup_t *resp = &F1AP_UE_CONTEXT_SETUP_RESP(msg_p);
   gNB_RRC_INST *rrc = RC.nrrrc[instance];
+  uint8_t modid_s;
+  uint8_t ho_idx;
+  rrc_gNB_ue_context_t *ho_ue_context_in_source = NULL;
   rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context_by_rnti(rrc, resp->rnti);
+  rrc_gNB_ue_context_t *ue_context_old = NULL;
+  if (ue_context_p == NULL && resp->crnti != NULL) {
+    ue_context_p = rrc_gNB_create_ue_context(resp->rnti, rrc, resp->rnti);
+    ho_ue_context_in_source = find_ho_ue_context_in_source(instance, &modid_s, &ho_idx);
+    ho_rnti_map[ho_idx][2] = resp->rnti;
+    ue_context_old = rrc_gNB_get_ue_context_by_rnti(RC.nrrrc[modid_s], ho_rnti_map[ho_idx][0]);
+    ue_context_p->ue_context.handover_info = ue_context_old->ue_context.handover_info;
+  }
+
   gNB_RRC_UE_t *UE = &ue_context_p->ue_context;
 
   NR_CellGroupConfig_t *cellGroupConfig = NULL;
@@ -2576,6 +2604,38 @@ static void rrc_CU_process_ue_context_setup_response(MessageDef *msg_p, instance
   /* at this point, we don't have to do anything: the UE context setup request
    * includes the Security Command, whose response will trigger the following
    * messages (UE capability, to be specific) */
+
+  if (ho_ue_context_in_source != NULL) {
+
+    MessageDef *message_p;
+    message_p = itti_alloc_new_message(TASK_RRC_GNB, 0, F1AP_UE_CONTEXT_MODIFICATION_REQ);
+    f1ap_ue_context_setup_t *req = &F1AP_UE_CONTEXT_MODIFICATION_REQ(message_p);
+    req->rnti = ho_ue_context_in_source->ue_context.rnti;
+    req->mcc = RC.nrrrc[modid_s]->configuration.mcc[0];
+    req->mnc = RC.nrrrc[modid_s]->configuration.mnc[0];
+    req->mnc_digit_length = RC.nrrrc[modid_s]->configuration.mnc_digit_length[0];
+    req->nr_cellid = RC.nrrrc[modid_s]->nr_cellid;
+
+    protocol_ctxt_t ctxt = {.rntiMaybeUEid = ho_rnti_map[ho_idx][0], .module_id = instance, .instance = RC.nrrrc[instance]->f1_instance, .enb_flag = 1, .eNB_index = instance};
+    req->rrc_container = calloc(1, RRC_BUF_SIZE*sizeof(uint8_t));
+    req->rrc_container_length = rrc_gNB_generate_HO_RRCReconfiguration(&ctxt,
+                                                                       modid_s,
+                                                                       instance,
+                                                                       ue_context_p,
+                                                                       ue_context_old,
+                                                                       req->rrc_container,
+                                                                       RRC_BUF_SIZE,
+                                                                       cellGroupConfig);
+
+    // To DU send the Downlink Data Delivery Status
+    req->ReconfigComplOutcome = RRCreconf_success;
+
+    // To stop the data transmission
+    req->transmission_action_indicator = calloc(1, sizeof(uint8_t));
+    *req->transmission_action_indicator = 0;
+
+    itti_send_msg_to_task(TASK_CU_F1, RC.nrrrc[modid_s]->f1_instance, message_p);
+  }
 }
 
 static void rrc_CU_process_ue_context_release_request(MessageDef *msg_p)

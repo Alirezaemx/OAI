@@ -172,7 +172,7 @@ void ue_context_setup_request(instance_t instance, const f1ap_ue_context_setup_t
   }
 
   if (req->rrc_container != NULL)
-    nr_rlc_srb_recv_sdu(req->rnti, DCCH, req->rrc_container, req->rrc_container_length);
+    nr_rlc_srb_recv_sdu(resp.rnti, DCCH, req->rrc_container, req->rrc_container_length);
 
   //nr_mac_update_cellgroup()
   resp.du_to_cu_rrc_information = calloc(1, sizeof(du_to_cu_rrc_information_t));
