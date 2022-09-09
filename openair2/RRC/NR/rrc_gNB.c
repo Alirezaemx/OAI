@@ -102,6 +102,7 @@
 
 #include "BIT_STRING.h"
 #include "assertions.h"
+#include "NR_HandoverCommand.h"
 
 //#define XER_PRINT
 
@@ -159,6 +160,16 @@ static void nr_rrc_addmod_drbs(int rnti,
 ///---------------------------------------------------------------------------------------------------------------///
 ///---------------------------------------------------------------------------------------------------------------///
 
+static instance_t get_instance_by_NR_physCellId(NR_PhysCellId_t physCellId)
+{
+  for (int i = 0; i < RC.nb_nr_inst; i++) {
+    if (RC.nrrrc[i] && RC.nrrrc[i]->carrier.physCellId == physCellId) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 static instance_t get_instance_by_NR_cellid(uint64_t nr_cellid)
 {
   for (int i = 0; i < RC.nb_nr_inst; i++) {
@@ -177,6 +188,14 @@ static instance_t get_instance_by_F1_instance(instance_t f1_instance)
     }
   }
   return -1;
+}
+
+static rnti_t get_new_rnti(gNB_RRC_INST *rrc) {
+  rnti_t rnti = 0;
+  do {
+    rnti = (taus() % 65518) + 1;
+  } while (rrc_gNB_get_ue_context_by_rnti(rrc, rnti) != NULL);
+  return rnti;
 }
 
 static void init_NR_SI(gNB_RRC_INST *rrc, gNB_RrcConfigurationReq *configuration)
@@ -780,6 +799,75 @@ void rrc_gNB_generate_dedicatedRRCReconfiguration(const protocol_ctxt_t *const c
 
     nr_mac_enable_ue_rrc_processing_timer(ctxt_pP->module_id, ue_p->rnti, *rrc->carrier.servingcellconfigcommon->ssbSubcarrierSpacing, delay_ms);
   }
+}
+
+int16_t rrc_gNB_generate_HO_RRCReconfiguration(const protocol_ctxt_t *ctxt_pP,
+                                               const uint8_t modid_s,
+                                               const uint8_t modid_t,
+                                               rrc_gNB_ue_context_t *ue_context_pP,
+                                               rrc_gNB_ue_context_t *ue_context_old,
+                                               uint8_t *buffer,
+                                               const int16_t buffer_size,
+                                               NR_CellGroupConfig_t *cellGroupConfig) {
+
+  uint8_t rrc_buffer[RRC_BUF_SIZE];
+  uint8_t xid = rrc_gNB_get_next_transaction_identifier(modid_s);
+  gNB_RRC_UE_t *ue_p = &ue_context_pP->ue_context;
+  ue_p->DRB_configList = ue_context_old->ue_context.DRB_configList;
+
+  // SRBs
+  for (int i = 0; i < maxSRBs; i++) {
+    ue_p->Srb[i].Active = ue_context_old->ue_context.Srb[i].Active;
+  }
+  NR_SRB_ToAddModList_t *SRBs = createSRBlist(ue_p, false);
+
+  // DRBs
+  NR_DRB_ToAddModList_t **DRB_configList2 = &ue_p->DRB_configList2[xid];
+  if (*DRB_configList2) {
+    free(*DRB_configList2);
+  }
+  *DRB_configList2 = CALLOC(1, sizeof(**DRB_configList2));
+  for (int drb_idx = 0; drb_idx < ue_p->DRB_configList->list.count; drb_idx++) {
+    ASN_SEQUENCE_ADD(&(*DRB_configList2)->list, ue_p->DRB_configList->list.array[drb_idx]);
+  }
+
+  int16_t rrc_size = do_RRCReconfiguration(ctxt_pP,
+                                           rrc_buffer,
+                                           RRC_BUF_SIZE,
+                                           xid,
+                                           SRBs,
+                                           ue_p->DRB_configList,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           ue_context_pP,
+                                           NULL,
+                                           NULL,
+                                           NULL,
+                                           cellGroupConfig);
+
+  AssertFatal(rrc_size > 0, "Handover command generation failed in %s, line %i\n", __FILE__, __LINE__);
+
+  nr_pdcp_data_req_srb(ctxt_pP->rntiMaybeUEid, DCCH, rrc_gNB_mui++, rrc_size, rrc_buffer, deliver_pdu_srb_f1, RC.nrrrc[modid_s]);
+
+  int16_t ho_size = do_NR_HandoverCommand(buffer,
+                                          buffer_size,
+                                          rrc_buffer,
+                                          rrc_size);
+
+  protocol_ctxt_t ctxt = {
+      .module_id = modid_t,
+      .rntiMaybeUEid = ue_p->rnti,
+      .enb_flag = 1,
+  };
+
+  nr_pdcp_add_srbs(ctxt.enb_flag, ctxt.rntiMaybeUEid, SRBs, 0, NULL, NULL);
+
+  AssertFatal(ho_size > 0, "Handover command generation failed in %s, line %i\n", __FILE__, __LINE__);
+
+  return ho_size;
 }
 
 //-----------------------------------------------------------------------------
