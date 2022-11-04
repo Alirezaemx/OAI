@@ -1102,7 +1102,8 @@ int phy_procedures_nrUE_RX(PHY_VARS_NR_UE *ue,
                         (j%fp->symbols_per_slot),
                         rxdataF);
           }
-          nr_prs_channel_estimation(rsc_id,
+          nr_prs_channel_estimation(gNB_id,
+                                    rsc_id,
                                     i,
                                     ue,
                                     proc,
