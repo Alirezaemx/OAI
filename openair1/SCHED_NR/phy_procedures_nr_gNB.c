@@ -44,6 +44,7 @@
 #include <time.h>
 
 #include "intertask_interface.h"
+#include "common/utils/LATSEQ/latseq.h"
 
 //#define DEBUG_RXDATA
 //#define SRS_IND_DEBUG
@@ -221,6 +222,7 @@ void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
   gNB->nbDecode--;
   LOG_D(PHY,"remain to decoded in subframe: %d\n", gNB->nbDecode);
   if (decodeSuccess) {
+    LATSEQ_P("U mac.decoded--mac.demuxed","::frame%d.slot%d.ulschid%d.harqpid%d.harqround%d", ulsch_harq->frame, ulsch_harq->slot, rdata->ulsch_id, rdata->harq_pid, ulsch_harq->round);
     memcpy(ulsch_harq->b+rdata->offset,
            ulsch_harq->c[r],
            rdata->Kr_bytes - (ulsch_harq->F>>3) -((ulsch_harq->C>1)?3:0));
@@ -265,6 +267,8 @@ void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
 
       LOG_D(PHY, "ULSCH %d in error\n",rdata->ulsch_id);
       nr_fill_indication(gNB,ulsch_harq->frame, ulsch_harq->slot, rdata->ulsch_id, rdata->harq_pid, 1,0);
+      LATSEQ_P("U mac.decoded--mac.retx","::frame%d.slot%d.ulschid%d.harqpid%d", ulsch_harq->frame, ulsch_harq->slot, rdata->ulsch_id, rdata->harq_pid);
+      LATSEQ_P("U mac.retx--phy.demodulatestart","::harqpid%d.harqround%d", rdata->harq_pid, ulsch_harq->round+1);
 //      dumpsig=1;
     }
 /*
@@ -824,7 +828,9 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
 
           VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_RX_PUSCH,1);
 	        start_meas(&gNB->rx_pusch_stats);
+          LATSEQ_P("U phy.demodulatestart--phy.demodulateend","::frame%d.slot%d.ulschid%d.harqpid%d.harqround%d", frame_rx, slot_rx, ULSCH_id, harq_pid, ulsch_harq->round);
           nr_rx_pusch(gNB, ULSCH_id, frame_rx, slot_rx, harq_pid);
+          LATSEQ_P("U phy.demodulateend--mac.decoded","::frame%d.slot%d.ulschid%d.harqpid%d.harqround%d", frame_rx, slot_rx, ULSCH_id, harq_pid, ulsch_harq->round);
           gNB->pusch_vars[ULSCH_id]->ulsch_power_tot=0;
           gNB->pusch_vars[ULSCH_id]->ulsch_noise_power_tot=0;
           for (int aarx=0;aarx<gNB->frame_parms.nb_antennas_rx;aarx++) {

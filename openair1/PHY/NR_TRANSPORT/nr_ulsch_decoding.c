@@ -47,6 +47,7 @@
 #include "common/utils/LOG/vcd_signal_dumper.h"
 #include "common/utils/LOG/log.h"
 #include <syscall.h>
+#include "common/utils/LATSEQ/latseq.h"
 //#define DEBUG_ULSCH_DECODING
 //#define gNB_DEBUG_TRACE
 
