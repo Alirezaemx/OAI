@@ -310,7 +310,16 @@ int DU_send_UE_CONTEXT_SETUP_RESPONSE(instance_t instance, f1ap_ue_context_setup
     ie4->id                             = F1AP_ProtocolIE_ID_id_C_RNTI;
     ie4->criticality                    = F1AP_Criticality_ignore;
     ie4->value.present                  = F1AP_UEContextSetupResponseIEs__value_PR_C_RNTI;
-    ie4->value.choice.C_RNTI = *resp->crnti;
+    ie4->value.choice.C_RNTI            = *resp->crnti;
+    if (f1ap_get_rnti_by_cu_id(DUtype, instance, resp->gNB_CU_ue_id) == -1) {
+      int f1ap_uid = f1ap_add_ue(DUtype, instance, *resp->crnti);
+      if (f1ap_uid < 0) {
+        LOG_E(F1AP, "Failed to add UE \n");
+        return -1;
+      }
+      resp->gNB_CU_ue_id = f1ap_get_cu_ue_f1ap_id(DUtype, instance, *resp->crnti);
+      resp->gNB_DU_ue_id = f1ap_get_du_ue_f1ap_id(DUtype, instance, *resp->crnti);
+    }
   }
 
   /* optional */
