@@ -253,6 +253,7 @@ uint8_t nr_ue_pusch_common_procedures(PHY_VARS_NR_UE *UE,
                                       NR_DL_FRAME_PARMS *frame_parms,
                                       uint8_t Nl);
 
+int8_t clean_UE_dlsch(PHY_VARS_NR_UE *UE, uint8_t gNB_id);
 int8_t clean_UE_ulsch(PHY_VARS_NR_UE *UE, uint8_t gNB_id);
 
 void nr_dlsch_unscrambling(int16_t* llr,
