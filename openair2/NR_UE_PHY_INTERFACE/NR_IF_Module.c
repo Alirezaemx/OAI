@@ -1098,8 +1098,8 @@ int8_t handle_dlsch(nr_downlink_indication_t *dl_info, int pdu_id)
   return 0;
 }
 
-int8_t handle_csirs_measurements(module_id_t module_id, frame_t frame, int slot, fapi_nr_csirs_measurements_t *csirs_measurements) {
-  return nr_ue_process_csirs_measurements(module_id, frame, slot, csirs_measurements);
+int8_t handle_l1_measurements(module_id_t module_id, frame_t frame, int slot, fapi_nr_l1_measurements_t *l1_measurements) {
+  return nr_ue_process_l1_measurements(module_id, frame, slot, l1_measurements);
 }
 
 void update_harq_status(module_id_t module_id, uint8_t harq_pid, uint8_t ack_nack) {
@@ -1225,11 +1225,11 @@ int nr_ue_dl_indication(nr_downlink_indication_t *dl_info)
           case FAPI_NR_RX_PDU_TYPE_RAR:
             ret_mask |= (handle_dlsch(dl_info, i)) << FAPI_NR_RX_PDU_TYPE_RAR;
             break;
-          case FAPI_NR_CSIRS_IND:
-            ret_mask |= (handle_csirs_measurements(dl_info->module_id,
-                                                   dl_info->frame,
-                                                   dl_info->slot,
-                                                   &rx_indication_body.csirs_measurements)) << FAPI_NR_CSIRS_IND;
+          case FAPI_NR_MEAS_IND:
+            ret_mask |= (handle_l1_measurements(dl_info->module_id,
+                                                dl_info->frame,
+                                                dl_info->slot,
+                                                &rx_indication_body.l1_measurements)) << FAPI_NR_MEAS_IND;
             break;
           default:
             break;
