@@ -190,7 +190,7 @@ int do_RRCReestablishment(const protocol_ctxt_t *const ctxt_pP,
 
 int do_RRCReestablishmentComplete(uint8_t *buffer, size_t buffer_size, int64_t rrc_TransactionIdentifier);
 
-NR_MeasConfig_t *get_defaultMeasConfig(const gNB_RrcConfigurationReq *conf);
+NR_MeasConfig_t *get_defaultMeasConfig(const module_id_t module_id);
 uint8_t do_NR_Paging(uint8_t Mod_id, uint8_t *buffer, uint32_t tmsi);
 
 #endif  /* __RRC_NR_MESSAGES_ASN1_MSG__H__ */
