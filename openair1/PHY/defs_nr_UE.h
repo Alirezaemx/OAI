@@ -217,8 +217,11 @@ typedef struct {
   unsigned char  nb_antennas_rx;
   /// DLSCH error counter
   // short          dlsch_errors;
-  /// Info about neighboring cells to permorme the measurements
+  /// Info about neighboring cells to perform the measurements
   neighboring_cell_info_t neighboring_cell_info[NUMBER_OF_NEIGHBORING_CELLs_MAX];
+  UE_nr_rxtx_proc_t *meas_proc;
+  pthread_t meas_thread;
+  bool meas_running;
 } PHY_NR_MEASUREMENTS;
 
 typedef struct {
