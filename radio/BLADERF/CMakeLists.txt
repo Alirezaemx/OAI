@@ -1,0 +1,7 @@
+pkg_search_module(bladeRF libbladeRF REQUIRED)
+if(NOT bladeRF_FOUND)
+  message(FATAL_ERROR "did not find bladeRF")
+endif()
+add_library(oai_bladerfdevif MODULE bladerf_lib.c)
+target_link_libraries(oai_bladerfdevif PRIVATE bladeRF)
+set_target_properties(oai_bladerfdevif PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
