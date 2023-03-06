@@ -1167,6 +1167,40 @@ void nr_ue_ul_scheduler(nr_uplink_indication_t *ul_info)
     }
     pthread_mutex_unlock(&ul_config->mutex_ul_config);
   }
+  
+  LOG_D(NR_MAC, "Updating Bj between LCP procedures\n");
+  // update Bj for all active lcids before LCP procedure
+  int T = 1; // time elapsed since Bj was last incremented
+  int32_t bj; // UE variable for logical channel prioritization(LCP). This variable need to be incremented before every instance of LCP procedure
+  int32_t bucketSize_max;   // max amount of data that can be buffered/accumulated in a logical channel buffer
+  for(int lcid = DCCH; lcid < NR_MAX_NUM_LCID; lcid++){
+    if(mac->logicalChannelBearer_exist[lcid]){
+      LOG_D(NR_MAC, "logical channel bearer %d exists\n", lcid);
+      if(mac->logicalChannelConfig[lcid]->ul_SpecificParameters != NULL){
+        LOG_D(NR_MAC, "ul_SpecificParameters are available for logical channel %d\n", lcid);
+        bucketSize_max = mac->scheduling_info.bucket_size[lcid];
+        // measure Bj
+        if(mac->scheduling_info.Bj[lcid] >= 0 || mac->scheduling_info.Bj[lcid] < 0){ // should be incremented irorespective of whether Bj is +ve or negative
+          // increment the value of Bj by product PBR  * T
+          if(mac->logicalChannelConfig[lcid]->ul_SpecificParameters->prioritisedBitRate == NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_infinity){
+            bj = nr_get_pbr(mac->logicalChannelConfig[lcid]->ul_SpecificParameters->prioritisedBitRate);
+          }else{
+            bj = mac->scheduling_info.Bj[lcid] + nr_get_pbr(mac->logicalChannelConfig[lcid]->ul_SpecificParameters->prioritisedBitRate) * T;
+          }
+          // bj > max bucket size, set bj to max bucket size, as in ts38.321 5.4.3.1 Logical Channel Prioritization
+          if(bj >= bucketSize_max){
+            mac->scheduling_info.Bj[lcid] = bucketSize_max;
+          }
+          else{
+            mac->scheduling_info.Bj[lcid] = bj;
+          }
+        }
+      }
+      else{
+        LOG_D(NR_MAC, "ul_SpecificParameters is NULL for logical channel %d\n", lcid);
+      }
+    }
+  }
 
   // Call BSR procedure as described in Section 5.4.5 in 38.321
 
@@ -2976,6 +3010,24 @@ void nr_ue_get_sdu_mac_ce_post(module_id_t module_idP,
   }
 }
 
+int lcid_cmp(const void *lcid1, const void *lcid2, void *mac_inst){
+  uint8_t id1 = *(uint8_t*)lcid1;
+  uint8_t id2 = *(uint8_t*)lcid2;
+  NR_UE_MAC_INST_t *mac = (NR_UE_MAC_INST_t*)mac_inst;
+  AssertFatal(id1 > 0 && id2 > 0, "undefined logical channel ids\n");
+   
+  if(mac->logicalChannelConfig[id1] != NULL && mac->logicalChannelConfig[id2] != NULL){
+    if (mac->logicalChannelConfig[id1]->ul_SpecificParameters->priority < mac->logicalChannelConfig[id2]->ul_SpecificParameters->priority){
+      return -1;
+    }
+    else if (mac->logicalChannelConfig[id1]->ul_SpecificParameters->priority > mac->logicalChannelConfig[id2]->ul_SpecificParameters->priority){
+      return 1;
+    }
+    else{
+      return 0;
+    }
+  }
+}
 /**
  * Function:      to fetch data to be transmitted from RLC, place it in the ULSCH PDU buffer
                   to generate the complete MAC PDU with sub-headers and MAC CEs according to ULSCH MAC PDU generation (6.1.2 TS 38.321)
@@ -3022,103 +3074,248 @@ uint8_t nr_ue_get_sdu(module_id_t module_idP,
 
   // Pointer used to build the MAC PDU by placing the RLC SDUs in the ULSCH buffer
   uint8_t *pdu = ulsch_buffer;
+  
+  // Pointer used to build the lcids with positive Bj
+  int *lcids_bj_pos = (int*)calloc(NR_MAX_NUM_LCID, sizeof(int));
+  uint8_t avail_lcids_count = 0;
 
-  //nr_ue_get_sdu_mac_ce_pre updates all mac_ce related header field related to length
+  // Pointer used to store the lcid data status during lcp
+  bool *lcids_data_status = (bool*)calloc(NR_MAX_NUM_LCID, sizeof(bool));
+
+  // Pointer used to store the total bytes read from rlc for each lcid
+  uint32_t *lcids_bytes_tot = (u_int32_t*)calloc(NR_MAX_NUM_LCID, sizeof(uint32_t));
+
+  long bytes_requested = 0;
+  long remaining_bytes = 0;
+  int lcp_allocation_counter = 0; // in the first run all the lc are allocated as per bj and prioritized bit rate but in subsequent runs, no need to consider bj and 
+                                  // prioritized bit rate but just consider priority
+  int16_t buflen_ep = 0;         // this variable holds the length in bytes in mac pdu when multiple equal priority channels are present
+                                  // because as per standard(TS38.321), all equal priority channels should be served equally
+
+  // nr_ue_get_sdu_mac_ce_pre updates all mac_ce related header field related to length
   mac_ce_p->tot_mac_ce_len = nr_ue_get_sdu_mac_ce_pre(module_idP, CC_id, frameP, subframe, gNB_index, ulsch_buffer, buflen, mac_ce_p);
   mac_ce_p->total_mac_pdu_header_len = mac_ce_p->tot_mac_ce_len;
 
   LOG_D(NR_MAC, "In %s: [UE %d] [%d.%d] process UL transport block at with size TBS = %d bytes \n", __FUNCTION__, module_idP, frameP, subframe, buflen);
 
-  // Check for DCCH first
-  // TO DO: Multiplex in the order defined by the logical channel prioritization
-  for (lcid = UL_SCH_LCID_SRB1; lcid < MAX_LCID; lcid++) {
-
-    buflen_remain = buflen - (mac_ce_p->total_mac_pdu_header_len + mac_ce_p->sdu_length_total + sh_size);
-
-    LOG_D(NR_MAC, "In %s: [UE %d] [%d.%d] UL-DXCH -> ULSCH, RLC with LCID 0x%02x (TBS %d bytes, sdu_length_total %d bytes, MAC header len %d bytes, buflen_remain %d bytes)\n",
-          __FUNCTION__,
-          module_idP,
-          frameP,
-          subframe,
-          lcid,
-          buflen,
-          mac_ce_p->sdu_length_total,
-          mac_ce_p->tot_mac_ce_len,
-          buflen_remain);
-
-    while (buflen_remain > 0){
-
-      // Pointer used to build the MAC sub-PDU headers in the ULSCH buffer for each SDU
-      NR_MAC_SUBHEADER_LONG *header = (NR_MAC_SUBHEADER_LONG *) pdu;
-
-      pdu += sh_size;
-
-      sdu_length = mac_rlc_data_req(module_idP,
-                                    mac->crnti,
-                                    gNB_index,
-                                    frameP,
-                                    ENB_FLAG_NO,
-                                    MBMS_FLAG_NO,
-                                    lcid,
-                                    buflen_remain,
-                                    (char *)pdu,
-                                    0,
-                                    0);
-
-      AssertFatal(buflen_remain >= sdu_length, "In %s: LCID = 0x%02x RLC has segmented %d bytes but MAC has max %d remaining bytes\n",
-                  __FUNCTION__,
-                  lcid,
-                  sdu_length,
-                  buflen_remain);
-
-      if (sdu_length > 0) {
-
-        LOG_D(NR_MAC, "In %s: [UE %d] [%d.%d] UL-DXCH -> ULSCH, Generating UL MAC sub-PDU for SDU %d, length %d bytes, RB with LCID 0x%02x (buflen (TBS) %d bytes)\n",
-          __FUNCTION__,
-          module_idP,
-          frameP,
-          subframe,
-          num_sdus + 1,
-          sdu_length,
-          lcid,
-          buflen);
-
-        header->R = 0;
-        header->F = 1;
-        header->LCID = lcid;
-        header->L = htons(sdu_length);
-
-        #ifdef ENABLE_MAC_PAYLOAD_DEBUG
-        LOG_I(NR_MAC, "In %s: dumping MAC sub-header with length %d: \n", __FUNCTION__, sh_size);
-        log_dump(NR_MAC, header, sh_size, LOG_DUMP_CHAR, "\n");
-        LOG_I(NR_MAC, "In %s: dumping MAC SDU with length %d \n", __FUNCTION__, sdu_length);
-        log_dump(NR_MAC, pdu, sdu_length, LOG_DUMP_CHAR, "\n");
-        #endif
-
-        pdu += sdu_length;
-        mac_ce_p->sdu_length_total += sdu_length;
-        mac_ce_p->total_mac_pdu_header_len += sh_size;
-
-        num_sdus++;
-
-      } else {
-        pdu -= sh_size;
-        LOG_D(NR_MAC, "In %s: no data to transmit for RB with LCID 0x%02x\n", __FUNCTION__, lcid);
-        break;
-      }
-
-      buflen_remain = buflen - (mac_ce_p->total_mac_pdu_header_len + mac_ce_p->sdu_length_total + sh_size);
-
-      //Update Buffer remain and BSR bytes after transmission
-      mac->scheduling_info.LCID_buffer_remain[lcid] -= sdu_length;
-      mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]] -= sdu_length;
-      LOG_D(NR_MAC, "[UE %d] Update BSR [%d.%d] BSR_bytes for LCG%d=%d\n",
-            module_idP, frameP, subframe, mac->scheduling_info.LCGID[lcid],
-            mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]]);
-      if (mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]] < 0)
-        mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]] = 0;
+  // (TODO: selection of logical channels for logical channel prioritization procedure as per 5.4.3.1.2 Selection of logical channels, TS38.321)
+  // selection of logical channels with Bj > 0
+  for(uint8_t id=UL_SCH_LCID_SRB1; id < NR_MAX_NUM_LCID; id++){
+    if(mac->logicalChannelBearer_exist[id] && mac->scheduling_info.Bj[id]>0){
+      lcids_bj_pos[avail_lcids_count] = id;
+      LOG_D(NR_MAC,"The available lcid is %d\n", lcids_bj_pos[avail_lcids_count]);
+      avail_lcids_count++;
     }
   }
+  LOG_D(NR_MAC,"In %s: [UE %d] [%d.%d] number of active logical channels are %d \n", __FUNCTION__, module_idP, frameP, subframe, avail_lcids_count);
+
+  // reorder the logical channels in the order of priority
+  int *lcids_ordered = lcids_bj_pos;
+  qsort_r((void*)lcids_ordered, avail_lcids_count, sizeof(int), lcid_cmp, (void*)mac);
+
+  // initialize the lcids_data_status to true
+  memset(lcids_data_status, 1, NR_MAX_NUM_LCID*sizeof(bool));
+
+  // multiplex in the order of highest priority
+  while(1){
+    uint8_t num_lcids_same_priority = 0;
+    uint8_t num_lcids_same_priority_tmp = 0;
+    memset(lcids_bytes_tot, 0, NR_MAX_NUM_LCID*sizeof(uint32_t));
+    
+    for (uint8_t id = 0; id < avail_lcids_count; id++) {
+      lcid = lcids_ordered[id];
+
+      long pbr = nr_get_pbr(mac->logicalChannelConfig[lcid]->ul_SpecificParameters->prioritisedBitRate);
+      
+      // TODO: the below 2 if conditions can be removed or merged in to one??
+      // skip the logical channel if no data in the buffer initially or the data in the buffer was zero because it was written in to MAC PDU
+      if(!mac->scheduling_info.LCID_status[lcid]){
+        LOG_D(NR_MAC,"skipping the logical channel %d due to false status in lcid and data in buffer is %d\n", lcid, mac->scheduling_info.LCID_buffer_remain[lcid]);
+        lcids_data_status[lcid] = false;
+        continue;
+      }
+      if(!lcids_data_status[lcid]){
+        LOG_D(NR_MAC,"skipping the logical channel %d due to empty data in lcid\n", lcid);
+        continue;
+      }
+      
+      // count number of lc with same priority as lcid
+      if(num_lcids_same_priority == 0){
+        for(uint8_t index = id; index < avail_lcids_count; index++){
+          if(!mac->logicalChannelBearer_exist[lcids_ordered[index]]){continue;}
+          uint8_t lcid_next = lcids_ordered[index];
+          if(mac->logicalChannelBearer_exist[lcid_next]){
+            if(mac->logicalChannelConfig[lcid]->ul_SpecificParameters->priority == mac->logicalChannelConfig[lcid_next]->ul_SpecificParameters->priority){
+              num_lcids_same_priority++;
+             }
+          }
+        }
+        num_lcids_same_priority_tmp = num_lcids_same_priority;
+      }
+      buflen_remain = buflen - (mac_ce_p->total_mac_pdu_header_len + mac_ce_p->sdu_length_total + sh_size);
+
+      LOG_D(NR_MAC, "In %s: [UE %d] [%d.%d] UL-DXCH -> ULSCH, RLC with LCID 0x%02x (TBS %d bytes, sdu_length_total %d bytes, MAC header len %d bytes, buflen_remain %d bytes)\n",
+            __FUNCTION__,
+            module_idP,
+            frameP,
+            subframe,
+            lcid,
+            buflen,
+            mac_ce_p->sdu_length_total,
+            mac_ce_p->tot_mac_ce_len,
+            buflen_remain);      
+
+      if(num_lcids_same_priority==num_lcids_same_priority_tmp){
+        buflen_ep = (buflen_remain - (num_lcids_same_priority_tmp * sh_size))/num_lcids_same_priority_tmp;
+      }
+      
+      while (buflen_remain > 0){
+        int32_t lcid_remain_buffer = mac->scheduling_info.LCID_buffer_remain[lcid];
+        LOG_D(NR_MAC, "%%%%%%%%%%%%%%%%%%%% In %s: [UE %d] [%d.%d] lcp round = %d, remaining mac pdu length = %d, lcid buffer remaining = %d, lcid = %d  %%%%%%%%%%%%%%%%%%%%\n", 
+              __FUNCTION__,
+              module_idP,
+              frameP,
+              subframe,
+              lcp_allocation_counter, 
+              buflen_remain, 
+              lcid_remain_buffer,  
+              lcid);
+
+        // Pointer used to build the MAC sub-PDU headers in the ULSCH buffer for each SDU
+        NR_MAC_SUBHEADER_LONG *header= (NR_MAC_SUBHEADER_LONG *) pdu;
+
+        pdu += sh_size;
+
+        // number of bytes requested from RLC for each LCID
+        long target = (num_lcids_same_priority_tmp > 1) ? ((buflen_ep < pbr) ? buflen_ep : pbr) : pbr;
+        if(lcp_allocation_counter == 0){   // initial round
+          uint16_t pdu_remain = (num_lcids_same_priority_tmp > 1) ? buflen_ep : buflen_remain;
+          bytes_requested = (pdu_remain < pbr)? (pdu_remain < lcid_remain_buffer ? pdu_remain : lcid_remain_buffer) : (pbr < lcid_remain_buffer ? pbr : lcid_remain_buffer);
+          remaining_bytes = target - lcids_bytes_tot[lcid];
+          bytes_requested = (bytes_requested < remaining_bytes) ? bytes_requested : remaining_bytes;
+        }
+        else{                             // from first round
+          if(num_lcids_same_priority_tmp > 1){
+            bytes_requested = (buflen_ep < lcid_remain_buffer ? buflen_ep : lcid_remain_buffer);
+            remaining_bytes = buflen_ep - lcids_bytes_tot[lcid];
+            bytes_requested = (bytes_requested < remaining_bytes) ? bytes_requested : remaining_bytes;
+          }
+          else{
+            bytes_requested = (buflen_remain < lcid_remain_buffer ? buflen_remain : lcid_remain_buffer);
+          }
+        }
+
+        AssertFatal(remaining_bytes > 0, "the total number of bytes allocated until target length is greater than expected\n");
+
+        LOG_D(NR_MAC, "number of bytes requested for lcid %d is %d \n", lcid, bytes_requested);
+        sdu_length = mac_rlc_data_req(module_idP,
+                                      mac->crnti,
+                                      gNB_index,
+                                      frameP,
+                                      ENB_FLAG_NO,
+                                      MBMS_FLAG_NO,
+                                      lcid,
+                                      bytes_requested,
+                                      (char *)pdu,
+                                      0,
+                                      0);
+
+        AssertFatal(bytes_requested >= sdu_length, "In %s: LCID = 0x%02x RLC has segmented %d bytes but MAC has max %d remaining bytes\n",
+                    __FUNCTION__,
+                    lcid,
+                    sdu_length,
+                    bytes_requested);
+
+        // Decrement Bj by the total size of MAC SDUs(RLC PDU) served to logical channel 
+        // currently the Bj is drecremented by size of MAC SDus everytime it is served to logical channel, so by this approach there 
+        // will be more chance for lower priority logical channels to be served in the next TTI
+        // second approach can also be followed where Bj is decremented only in the first round but not in the subsequent rounds
+        mac->scheduling_info.Bj[lcid] -= sdu_length;
+        LOG_D(NR_MAC,"decrement Bj of the lcid %d by size of sdu length = %d and new Bj for lcid %d is %d\n", 
+                      lcid, 
+                      sdu_length,
+                      lcid, 
+                      mac->scheduling_info.Bj[lcid]);
+
+        if (sdu_length > 0) {
+          LOG_D(NR_MAC, "In %s: [UE %d] [%d.%d] UL-DXCH -> ULSCH, Generating UL MAC sub-PDU for SDU %d, length %d bytes, RB with LCID 0x%02x (buflen (TBS) %d bytes)\n",
+            __FUNCTION__,
+            module_idP,
+            frameP,
+            subframe,
+            num_sdus + 1,
+            sdu_length,
+            lcid,
+            buflen);
+
+          header->R = 0;
+          header->F = 1;
+          header->LCID = lcid;
+          header->L = htons(sdu_length);
+
+          #ifdef ENABLE_MAC_PAYLOAD_DEBUG
+          LOG_I(NR_MAC, "In %s: dumping MAC sub-header with length %d: \n", __FUNCTION__, sh_size);
+          log_dump(NR_MAC, header, sh_size, LOG_DUMP_CHAR, "\n");
+          LOG_I(NR_MAC, "In %s: dumping MAC SDU with length %d \n", __FUNCTION__, sdu_length);
+          log_dump(NR_MAC, pdu, sdu_length, LOG_DUMP_CHAR, "\n");
+          #endif
+
+          pdu += sdu_length;
+          mac_ce_p->sdu_length_total += sdu_length;
+          mac_ce_p->total_mac_pdu_header_len += sh_size;
+
+          num_sdus++;
+        } else {
+          pdu -= sh_size;
+          lcids_data_status[lcid] = false;
+          num_lcids_same_priority--;
+          LOG_D(NR_MAC, "set the lcid %d to false\n", lcid);
+          LOG_D(NR_MAC, "In %s: no data to transmit for RB with LCID 0x%02x\n", __FUNCTION__, lcid);
+          break;
+        }
+
+        buflen_remain = buflen - (mac_ce_p->total_mac_pdu_header_len + mac_ce_p->sdu_length_total + sh_size);
+
+        //Update Buffer remain and BSR bytes after transmission
+        mac->scheduling_info.LCID_buffer_remain[lcid] -= sdu_length;
+        mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]] -= sdu_length;
+        LOG_D(NR_MAC, "[UE %d] Update BSR [%d.%d] BSR_bytes for LCG%d=%d\n",
+              module_idP, frameP, subframe, mac->scheduling_info.LCGID[lcid],
+              mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]]);
+        if (mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]] < 0)
+          mac->scheduling_info.BSR_bytes[mac->scheduling_info.LCGID[lcid]] = 0;
+        
+        lcids_bytes_tot[lcid] += (sdu_length + (num_lcids_same_priority_tmp > 1 ? 1 : 0) * sh_size);
+        if(lcp_allocation_counter==0){  // only prioritized bit rate should be taken from logical channel in the first lcp run except when infinity
+          if(lcids_bytes_tot[lcid] >= target){
+            LOG_D(NR_MAC,"In %s: total number bytes read from rlc buffer for lcid %d are %d\n", __FUNCTION__, lcid, lcids_bytes_tot[lcid]);
+            num_lcids_same_priority--;
+            break;
+          }
+        }else{
+          if(num_lcids_same_priority_tmp > 1 && lcids_bytes_tot[lcid] >= buflen_ep){
+            LOG_D(NR_MAC,"In %s: total number bytes read from rlc buffer for lcid %d are %d\n", __FUNCTION__, lcid, lcids_bytes_tot[lcid]);
+            num_lcids_same_priority --;
+            break;
+          }
+        }
+      }
+    }
+    // check the over all status of data in lcid buffer after creating the MAC PDU as per its size
+    bool data_status = false;
+    for(uint8_t id=0; id < avail_lcids_count; id++){
+      LOG_D(NR_MAC,"The lcid data status of lcid%d is %d\n", lcids_ordered[id], lcids_data_status[lcids_ordered[id]]);
+      data_status =  data_status || lcids_data_status[lcids_ordered[id]];
+    }
+
+    lcp_allocation_counter++;
+
+    if (buflen_remain<=0 || data_status==false){
+      LOG_D(NR_MAC, "Break out of while loop, buflen remain is %d and data status is %d\n", buflen_remain, data_status);
+      break;
+    }
+  }
+  
 
   //nr_ue_get_sdu_mac_ce_post recalculates all mac_ce related header fields since buffer has been changed after mac_rlc_data_req.
   //Also, BSR padding is handled here after knowing mac_ce_p->sdu_length_total.
@@ -3187,3 +3384,86 @@ void schedule_ta_command(fapi_nr_dl_config_request_t *dl_config, NR_UL_TIME_ALIG
   dl_config->number_pdus += 1;
   ul_time_alignment->ta_apply = false;
 }
+
+
+uint16_t nr_get_ms_bucketsizeduration(uint8_t bucketsizeduration) {
+  switch (bucketsizeduration) {
+    case NR_LogicalChannelConfig__ul_SpecificParameters__bucketSizeDuration_ms50:
+      return 50;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__bucketSizeDuration_ms100:
+      return 100;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__bucketSizeDuration_ms150:
+      return 150;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__bucketSizeDuration_ms300:
+      return 300;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__bucketSizeDuration_ms500:
+      return 500;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__bucketSizeDuration_ms1000:
+      return 1000;
+
+    default:
+      return 0;
+  }
+}
+
+uint32_t nr_get_pbr(uint8_t prioritizedbitrate){
+  switch (prioritizedbitrate){
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps0:
+      return 0;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps8:
+      return 8;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps16:
+      return 16;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps32:
+      return 32;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps64:
+      return 64;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps128:
+      return 128;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps256:
+      return 256;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps512:
+      return 512;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps1024:
+      return 1024;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps2048:
+      return 2048;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps4096:
+      return 4096;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps8192:
+      return 8192;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps16384:
+      return 16384;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps32768:
+      return 32768;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_kBps65536:
+      return 65536;
+
+    case NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_infinity:
+      return INT32_MAX;
+    
+    default:
+      break;
+  }
+}
+
+

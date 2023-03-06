@@ -533,17 +533,47 @@ void configure_ss_coreset(NR_UE_MAC_INST_t *mac,
   }
 }
 
-// todo handle mac_LogicalChannelConfig
-int nr_rrc_mac_config_req_ue_logicalChannelBearer(
-    module_id_t                     module_id,
-    int                             cc_idP,
-    uint8_t                         gNB_index,
-    long                            logicalChannelIdentity,
-    bool                            status){
+
+//(Added)handling of mac_LogicalChannelConfig
+int nr_rrc_mac_config_req_ue_logicalChannelBearer(module_id_t module_id,
+                                                  int cc_idP,
+                                                  uint8_t gNB_index,
+                                                  long logicalChannelIdentity,
+                                                  NR_LogicalChannelConfig_t *logicalChannelConfig,
+                                                  bool status){
     NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
-    mac->logicalChannelBearer_exist[logicalChannelIdentity] = status;
+
+    if(logicalChannelConfig != NULL){
+      LOG_I(NR_MAC, "[Config][UE %d]Applying RRC Logical Channel Config from gNB %d\n", module_id, gNB_index);
+      mac->logicalChannelBearer_exist[logicalChannelIdentity] = status;
+      mac->logicalChannelConfig[logicalChannelIdentity] = logicalChannelConfig;
+
+      // initialize the variable Bj for every LCID
+      mac->scheduling_info.Bj[logicalChannelIdentity] = 0;
+
+      AssertFatal(logicalChannelConfig->ul_SpecificParameters != NULL, "[UE %d]LCID %ld -> NULL ul_SpecificParameters\n", module_id, logicalChannelIdentity);
+
+      // store the bucket size
+      if(logicalChannelConfig->ul_SpecificParameters->prioritisedBitRate == NR_LogicalChannelConfig__ul_SpecificParameters__prioritisedBitRate_infinity){
+        mac->scheduling_info.bucket_size[logicalChannelIdentity] = nr_get_pbr(logicalChannelConfig->ul_SpecificParameters->prioritisedBitRate);
+      }
+      else{
+        int pbr = nr_get_pbr(logicalChannelConfig->ul_SpecificParameters->prioritisedBitRate);
+        int bsd = nr_get_ms_bucketsizeduration(logicalChannelConfig->ul_SpecificParameters->bucketSizeDuration);
+        mac->scheduling_info.bucket_size[logicalChannelIdentity] = pbr * bsd;
+      }
+
+      if(logicalChannelConfig->ul_SpecificParameters->logicalChannelGroup != NULL){
+      mac->scheduling_info.LCGID[logicalChannelIdentity] = logicalChannelConfig->ul_SpecificParameters->logicalChannelGroup;
+      LOG_D(NR_MAC, "[Config][UE %d]logical channel %d is attached to logical channel group %d\n", logicalChannelIdentity, mac->scheduling_info.LCGID[logicalChannelIdentity]);
+      }
+      else{
+      LOG_D(NR_MAC, "[Config][UE %d]logical channel group is NULL for the logical channel %d\n", mac->scheduling_info.LCGID[logicalChannelIdentity], logicalChannelIdentity);
+      }
+  }
     return 0;
 }
+
 
 
 void configure_current_BWP(NR_UE_MAC_INST_t *mac,

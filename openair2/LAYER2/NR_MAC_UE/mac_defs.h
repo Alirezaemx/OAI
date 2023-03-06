@@ -228,9 +228,9 @@ typedef struct {
   uint16_t extendedPHR_r10;
 
   //Bj bucket usage per  lcid
-  int16_t Bj[NR_MAX_NUM_LCID];
+  int32_t Bj[NR_MAX_NUM_LCID];
   // Bucket size per lcid
-  int16_t bucket_size[NR_MAX_NUM_LCID];
+  int32_t bucket_size[NR_MAX_NUM_LCID];
 } NR_UE_SCHEDULING_INFO;
 
 typedef enum {
@@ -461,8 +461,13 @@ typedef struct {
   /// BSR report flag management
   uint8_t BSR_reporting_active;
 
-  /// LogicalChannelConfig has bearer.
+  // If LogicalChannelConfig has bearer.
   bool logicalChannelBearer_exist[NR_MAX_NUM_LCID];
+
+  // Logical Channel Configuration if bearer exists
+  // Pointers to LogicalChannelConfig indexed by LogicalChannelIdentity. Note NULL means LCHAN is inactive.
+  NR_LogicalChannelConfig_t *logicalChannelConfig[NR_MAX_NUM_LCID];
+
   NR_UE_SCHEDULING_INFO   scheduling_info;
 
   /// PHR

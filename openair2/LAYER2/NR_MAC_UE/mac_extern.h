@@ -79,6 +79,8 @@ extern void mac_rlc_data_ind(const module_id_t         module_idP,
                              const tb_size_t           tb_sizeP,
                              num_tb_t                  num_tbP,
                              crc_t                    *crcs_pP);
+extern uint16_t nr_get_ms_bucketsizeduration(uint8_t bucketsizeduration);
+extern uint32_t nr_get_pbr(uint8_t prioritizedbitrate);
 
 extern const char *rnti_types[];
 extern const char *dci_formats[];
