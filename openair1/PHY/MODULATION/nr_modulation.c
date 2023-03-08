@@ -705,17 +705,19 @@ int nr_layer_precoder(int16_t **datatx_F_precoding, const char *prec_matrix, uin
       ((int16_t *)precodatatx_F)[1] = (int16_t)((((int16_t *)precodatatx_F)[1]*ONE_OVER_SQRT2_Q15)>>15);*/
 }
 
-int nr_layer_precoder_cm(int16_t **datatx_F_precoding, int *prec_matrix, uint8_t n_layers, int32_t re_offset)
+c16_t nr_layer_precoder_cm(int16_t **datatx_F_precoding, nfapi_nr_pm_pdu_t *pmi_pdu, int ap, uint8_t n_layers, int32_t re_offset)
 {
-  int32_t precodatatx_F = 0;
-  for (int al = 0; al<n_layers; al++) {
-    int16_t antenna_re = datatx_F_precoding[al][re_offset<<1];
-    int16_t antenna_im = datatx_F_precoding[al][(re_offset<<1) +1];
-    //printf("antenna precoding: %d %d\n",((int16_t *)&prec_matrix[al])[0],((int16_t *)&prec_matrix[al])[1]);
-    ((int16_t *) &precodatatx_F)[0] += (int16_t)(((int32_t)(antenna_re*(((int16_t *)&prec_matrix[al])[0])) - (int32_t)(antenna_im* (((int16_t *)&prec_matrix[al])[1])))>>15);
-    ((int16_t *) &precodatatx_F)[1] += (int16_t)(((int32_t)(antenna_re*(((int16_t *)&prec_matrix[al])[1])) + (int32_t)(antenna_im* (((int16_t *)&prec_matrix[al])[0])))>>15);
+  AssertFatal(ap < pmi_pdu->num_ant_ports, "Antenna port index %d exceeds precoding matrix AP size %d\n", ap, pmi_pdu->num_ant_ports);
+  AssertFatal(n_layers == pmi_pdu->numLayers, "Number of layers %d doesn't match to the one in precoding matrix%d\n", n_layers, pmi_pdu->numLayers);
+  c16_t precodatatx_F = {0};
+  for (int l = 0; l < n_layers; l++) {
+    int16_t antenna_re = datatx_F_precoding[l][re_offset << 1];
+    int16_t antenna_im = datatx_F_precoding[l][(re_offset << 1) + 1];
+    nfapi_nr_pm_weights_t weights = pmi_pdu->weights[l][ap];
+    //printf("antenna precoding: %d %d\n",((int16_t *)&prec_matrix[l])[0],((int16_t *)&prec_matrix[l])[1]);
+    precodatatx_F.r += (int16_t)(((int32_t)(antenna_re * weights.precoder_weight_Re) - (int32_t)(antenna_im * weights.precoder_weight_Im))>>15);
+    precodatatx_F.i += (int16_t)(((int32_t)(antenna_re * weights.precoder_weight_Im) + (int32_t)(antenna_im * weights.precoder_weight_Re))>>15);
   }
-
   return precodatatx_F;
 }
 

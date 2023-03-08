@@ -131,8 +131,5 @@ void apply_nr_rotation_ul(NR_DL_FRAME_PARMS *frame_parms,
 */
 int nr_layer_precoder(int16_t **datatx_F_precoding, const char *prec_matrix, uint8_t n_layers, int32_t re_offset);
 
-int nr_layer_precoder_cm(int16_t **datatx_F_precoding,
-                int *prec_matrix,
-                uint8_t n_layers,
-                int32_t re_offset);
+c16_t nr_layer_precoder_cm(int16_t **datatx_F_precoding, nfapi_nr_pm_pdu_t *pmi_pdu, int ap, uint8_t n_layers, int32_t re_offset);
 #endif

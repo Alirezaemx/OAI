@@ -42,6 +42,7 @@
 #define NR_MAX_HARQ_PROCESSES 16
 #define NR_NB_REG_PER_CCE 6
 #define NR_NB_SC_PER_RB 12
+#define NR_MAX_NB_LAYERS 4 // 8
 
 typedef enum {
   nr_FR1 = 0,

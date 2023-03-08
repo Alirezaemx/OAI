@@ -531,36 +531,22 @@ void nr_generate_pdsch(processingData_L1tx_t *msgTx,
             }
           }
           else {
-            if(frame_parms->nb_antennas_tx==1){//no precoding matrix defined
-              memcpy((void*)&txdataF[ap][l*frame_parms->ofdm_symbol_size + txdataF_offset + k],
-                     (void*)&txdataF_precoding[ap][2*(l*frame_parms->ofdm_symbol_size + k)],
-                     NR_NB_SC_PER_RB*sizeof(int32_t));
-              k += NR_NB_SC_PER_RB;
-              if (k >= frame_parms->ofdm_symbol_size) {
+            AssertFatal(frame_parms->nb_antennas_tx > 1, "No precoding can be done with a single antenna port\n");
+            //get the precoding matrix weights:
+            nfapi_nr_pm_pdu_t *pmi_pdu = &gNB->gNB_config.pmi_list.pmi_pdu[pmi];
+
+            for (int i = 0; i < NR_NB_SC_PER_RB; i++) {
+              int32_t re_offset = l * frame_parms->ofdm_symbol_size + k;
+              c16_t precodatatx_F = nr_layer_precoder_cm(txdataF_precoding, pmi_pdu, ap, rel15->nrOfLayers, re_offset);
+              ((int16_t*)txdataF[ap])[(re_offset<<1) + (2*txdataF_offset)] = precodatatx_F.r;
+              ((int16_t*)txdataF[ap])[(re_offset<<1) + 1 + (2*txdataF_offset)] = precodatatx_F.i;
+#ifdef DEBUG_DLSCH_MAPPING
+              printf("antenna %d\t l %d \t k %d \t txdataF: %d %d\n",
+                     ap, l, k, ((int16_t*)txdataF[ap])[(re_offset<<1) + (2*txdataF_offset)],
+                     ((int16_t*)txdataF[ap])[(re_offset<<1) + 1 + (2*txdataF_offset)]);
+#endif
+              if (++k >= frame_parms->ofdm_symbol_size) {
                 k -= frame_parms->ofdm_symbol_size;
-              }
-            }
-            else {
-              //get the precoding matrix weights:
-              int32_t **mat = gNB->nr_mimo_precoding_matrix[rel15->nrOfLayers-1];
-              //i_row =0,...,dl_antenna_port
-              //j_col =0,...,nrOfLayers
-              //mat[pmi][i_rows*2+j_col]
-              int *W_prec;
-              W_prec = (int32_t *)&mat[pmi][ap*rel15->nrOfLayers];
-              for (int i=0; i<NR_NB_SC_PER_RB; i++) {
-                int32_t re_offset = l*frame_parms->ofdm_symbol_size + k;
-                int32_t precodatatx_F = nr_layer_precoder_cm(txdataF_precoding, W_prec, rel15->nrOfLayers, re_offset);
-                ((int16_t*)txdataF[ap])[(re_offset<<1) + (2*txdataF_offset)] = ((int16_t *) &precodatatx_F)[0];
-                ((int16_t*)txdataF[ap])[(re_offset<<1) + 1 + (2*txdataF_offset)] = ((int16_t *) &precodatatx_F)[1];
-  #ifdef DEBUG_DLSCH_MAPPING
-                printf("antenna %d\t l %d \t k %d \t txdataF: %d %d\n",
-                       ap, l, k, ((int16_t*)txdataF[ap])[(re_offset<<1) + (2*txdataF_offset)],
-                       ((int16_t*)txdataF[ap])[(re_offset<<1) + 1 + (2*txdataF_offset)]);
-  #endif
-                if (++k >= frame_parms->ofdm_symbol_size) {
-                  k -= frame_parms->ofdm_symbol_size;
-                }
               }
             }
           }
