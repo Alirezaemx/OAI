@@ -651,7 +651,7 @@ int unpack_tlv_list(unpack_tlv_t unpack_fns[], uint16_t size, uint8_t **ppReadPa
           on_error();
         }
         // Remove padding that ensures multiple of 4 bytes (SCF 225 Section 2.3.2.1)
-        int padding = ( 4 - (tl->length % 4) ) % 4;
+        int padding = get_tlv_padding(tl->length);
         if (padding != 0) {
           (*ppReadPackedMsg) += padding;
         }
@@ -678,7 +678,7 @@ int unpack_tlv_list(unpack_tlv_t unpack_fns[], uint16_t size, uint8_t **ppReadPa
 
           if((end - *ppReadPackedMsg) >= generic_tl.length) {
             // Advance past the unknown TLV
-            (*ppReadPackedMsg) += generic_tl.length + ( 4 - (generic_tl.length % 4) ) % 4;
+            (*ppReadPackedMsg) += generic_tl.length + get_tlv_padding(generic_tl.length);
           } else {
             // go to the end
             return 0;
@@ -696,7 +696,7 @@ int unpack_tlv_list(unpack_tlv_t unpack_fns[], uint16_t size, uint8_t **ppReadPa
 
         if((end - *ppReadPackedMsg) >= generic_tl.length) {
           // Advance past the unknown TLV
-          (*ppReadPackedMsg) += generic_tl.length + ( 4 - (generic_tl.length % 4) ) % 4;
+          (*ppReadPackedMsg) += generic_tl.length + get_tlv_padding(generic_tl.length);
         } else {
           // go to the end
           return 0;
@@ -738,7 +738,7 @@ int unpack_p7_tlv_list(unpack_p7_tlv_t unpack_fns[], uint16_t size, uint8_t **pp
           on_error();
         }
         // Remove padding that ensures multiple of 4 bytes (SCF 225 Section 2.3.2.1)
-        int padding = ( 4 - (tl->length % 4) ) % 4;
+        int padding = get_tlv_padding(tl->length);
         if (padding != 0) {
           (*ppReadPackedMsg) += padding;
         }
@@ -765,7 +765,7 @@ int unpack_p7_tlv_list(unpack_p7_tlv_t unpack_fns[], uint16_t size, uint8_t **pp
 
           if((end - *ppReadPackedMsg) >= generic_tl.length) {
             // Advance past the unknown TLV
-            (*ppReadPackedMsg) += generic_tl.length + ( 4 - (generic_tl.length % 4) ) % 4;
+            (*ppReadPackedMsg) += generic_tl.length + get_tlv_padding(generic_tl.length);;
           } else {
             // got ot the dn
             return 0;
@@ -783,7 +783,7 @@ int unpack_p7_tlv_list(unpack_p7_tlv_t unpack_fns[], uint16_t size, uint8_t **pp
 
         if((end - *ppReadPackedMsg) >= generic_tl.length) {
           // Advance past the unknown TLV
-          (*ppReadPackedMsg) += generic_tl.length + ( 4 - (generic_tl.length % 4) ) % 4;
+          (*ppReadPackedMsg) += generic_tl.length + get_tlv_padding(generic_tl.length);
         } else {
           // got ot the dn
           return 0;
@@ -820,7 +820,8 @@ uint8_t pack_tlv(uint16_t tag, void *tlv, uint8_t **ppWritePackedMsg, uint8_t *e
     // rewrite the header with the correct length
     pack_tl(tl, &pStartOfTlv, end);
     // Add padding that ensures multiple of 4 bytes (SCF 225 Section 2.3.2.1)
-    int padding = ( 4 - (tl->length % 4) ) % 4;
+    int padding = get_tlv_padding(tl->length);
+    NFAPI_TRACE(NFAPI_TRACE_DEBUG, "TLV 0x%x with padding of %d bytes\n", tl->tag, padding);
     if (padding != 0) {
       memset(*ppWritePackedMsg,0,padding);
       (*ppWritePackedMsg) += padding;
@@ -868,4 +869,8 @@ const char *nfapi_error_code_to_str(nfapi_error_code_e value) {
     default:
       return "UNKNOWN";
   }
+}
+
+uint8_t get_tlv_padding(uint16_t tlv_length){
+  return ( 4 - (tlv_length % 4) ) % 4;
 }
