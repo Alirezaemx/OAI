@@ -718,7 +718,7 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
   numTLVs++;
 
   push16(NFAPI_NR_CONFIG_DL_K0_TAG, ppWritePackedMsg, end);
-  push16(6 * sizeof(uint16_t), ppWritePackedMsg, end);
+  push16(5 * sizeof(uint16_t), ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.dl_k0[0].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.dl_k0[1].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.dl_k0[2].value, ppWritePackedMsg, end);
@@ -728,7 +728,7 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
   numTLVs++;
 
   push16(NFAPI_NR_CONFIG_DL_GRID_SIZE_TAG, ppWritePackedMsg, end);
-  push16(6 * sizeof(uint16_t), ppWritePackedMsg, end);
+  push16(5 * sizeof(uint16_t), ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.dl_grid_size[0].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.dl_grid_size[1].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.dl_grid_size[2].value, ppWritePackedMsg, end);
@@ -750,7 +750,7 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
   numTLVs++;
 
   push16(NFAPI_NR_CONFIG_UL_K0_TAG, ppWritePackedMsg, end);
-  push16(6 * sizeof(uint16_t), ppWritePackedMsg, end);
+  push16(5 * sizeof(uint16_t), ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.ul_k0[0].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.ul_k0[1].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.ul_k0[2].value, ppWritePackedMsg, end);
@@ -760,7 +760,7 @@ static uint8_t pack_nr_config_request(void *msg, uint8_t **ppWritePackedMsg, uin
   numTLVs++;
 
   push16(NFAPI_NR_CONFIG_UL_GRID_SIZE_TAG, ppWritePackedMsg, end);
-  push16(6 * sizeof(uint16_t), ppWritePackedMsg, end);
+  push16(5 * sizeof(uint16_t), ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.ul_grid_size[0].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.ul_grid_size[1].value, ppWritePackedMsg, end);
   push16(pNfapiMsg->carrier_config.ul_grid_size[2].value, ppWritePackedMsg, end);
@@ -2017,25 +2017,21 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
             for(int i = 0; i < 5 ; i++){
               result = unpack_uint16_tlv_value(&pNfapiMsg->carrier_config.dl_grid_size[i],ppReadPackedMsg,end);
             }
-            *ppReadPackedMsg+=2;
             break;
           case NFAPI_NR_CONFIG_DL_K0_TAG:
             for(int i = 0; i < 5 ; i++){
               result = unpack_uint16_tlv_value(&pNfapiMsg->carrier_config.dl_k0[i],ppReadPackedMsg,end);
             }
-            *ppReadPackedMsg+=2;
             break;
           case NFAPI_NR_CONFIG_UL_GRID_SIZE_TAG:
             for(int i = 0; i < 5 ; i++){
               result = unpack_uint16_tlv_value(&pNfapiMsg->carrier_config.ul_grid_size[i],ppReadPackedMsg,end);
             }
-            *ppReadPackedMsg+=2;
             break;
           case NFAPI_NR_CONFIG_UL_K0_TAG:
             for(int i = 0; i < 5 ; i++){
               result = unpack_uint16_tlv_value(&pNfapiMsg->carrier_config.ul_k0[i],ppReadPackedMsg,end);
             }
-            *ppReadPackedMsg+=2;
             break;
           case NFAPI_NR_CONFIG_BEAM_ID_TAG:
             pNfapiMsg->ssb_table.ssb_beam_id_list[config_beam_idx].beam_id.tl.tag = generic_tl.tag;
@@ -2061,11 +2057,12 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
           return 0;
 
         // check if the length was right;
-        if(tl->length != (*ppReadPackedMsg - pStartOfValue))
+        if(tl->length != ( ((*ppReadPackedMsg)) - pStartOfValue))
           NFAPI_TRACE(NFAPI_TRACE_ERROR, "Warning tlv tag 0x%x length %d not equal to unpack %lu\n", tl->tag, tl->length, (*ppReadPackedMsg - pStartOfValue));
 
         // Remove padding that ensures multiple of 4 bytes (SCF 225 Section 2.3.2.1)
-        int padding = ( 4 - (tl->length % 4) ) % 4;
+        int padding = get_tlv_padding(tl->length);
+        NFAPI_TRACE(NFAPI_TRACE_DEBUG,"TLV 0x%x length %d with padding of %d bytes\n", tl->tag,tl->length, padding);
         if (padding != 0)
           (*ppReadPackedMsg) += padding;
 
@@ -2091,7 +2088,7 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
           if((end - *ppReadPackedMsg) >= generic_tl.length) {
             // Advance past the unknown TLV
             (*ppReadPackedMsg) += generic_tl.length ;
-            int padding = ( 4 - (generic_tl.length % 4) ) % 4;
+            int padding = get_tlv_padding(generic_tl.length);
             if (padding != 0) {
               (*ppReadPackedMsg) += padding;
             }
@@ -2110,7 +2107,7 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
         if((end - *ppReadPackedMsg) >= generic_tl.length) {
           // Advance past the unknown TLV
           (*ppReadPackedMsg) += generic_tl.length ;
-          int padding = ( 4 - (generic_tl.length % 4) ) % 4;
+          int padding = get_tlv_padding(generic_tl.length);
           if (padding != 0) {
             (*ppReadPackedMsg) += padding;
           }
