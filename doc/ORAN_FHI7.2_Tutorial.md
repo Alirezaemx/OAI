@@ -56,8 +56,10 @@ make install T=x86_64-native-linuxapp-gcc
 
 We have mentioned the information for our setup but if you want more information then you can refer to below links,
 
+```bash
 1. [O-RAN-SC O-DU Setup Configuration](https://docs.o-ran-sc.org/projects/o-ran-sc-o-du-phy/en/latest/Setup-Configuration_fh.html)
 2. [O-RAN Cloud Platform Reference Designs 2.0,O-RAN.WG6.CLOUD-REF-v02.00,February 2021](https://orandownloadsweb.azurewebsites.net/specifications)
+```
 
 ### 1.2.1 RHEL
 
@@ -68,9 +70,9 @@ Update Linux boot arguments
 igb.max_vfs=2 intel_iommu=on iommu=pt intel_pstate=disable nosoftlockup tsc=nowatchdog mitigations=off cgroup_memory=1 cgroup_enable=memory mce=off idle=poll hugepagesz=1G hugepages=40 hugepagesz=2M hugepages=0 default_hugepagesz=1G selinux=0 enforcing=0 nmi_watchdog=0 softlockup_panic=0 audit=0 skew_tick=1 isolcpus=managed_irq,domain,0-2,8-17 nohz_full=0-2,8-17 rcu_nocbs=0-2,8-17 rcu_nocb_poll
 ```
 
-### 1.2.1 Ubuntu
+### 1.2.2 Ubuntu
 
-Install real timer kernel followed by updating boot arguments
+Install real time kernel followed by updating boot arguments
 ```bash
 isolcpus=0-2,8-17 nohz=on nohz_full=0-2,8-17 rcu_nocbs=0-2,8-17 rcu_nocb_poll nosoftlockup default_hugepagesz=1GB hugepagesz=1G hugepages=10 amd_iommu=on iommu=pt
 ```

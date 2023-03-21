@@ -110,7 +110,6 @@ extern "C"
 /*-----------------------------------------------------------------------------------------------------------------------------------------------------*/
 #define RF_CONFIG_FILE      softmodem_params.rf_config_file
 #define TP_CONFIG           softmodem_params.threadPoolConfig
-#define CONTINUOUS_TX softmodem_params.continuous_tx
 #define PHY_TEST            softmodem_params.phy_test
 #define DO_RA               softmodem_params.do_ra
 #define SA                  softmodem_params.sa
