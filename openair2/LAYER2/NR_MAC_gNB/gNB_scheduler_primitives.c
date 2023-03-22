@@ -2305,7 +2305,6 @@ void configure_UE_BWP(gNB_MAC_INST *nr_mac,
                                           target_ss,
                                           false);
 
-  UL_BWP->mcs_table = get_pusch_mcs_table(ul_mcs_Table, UL_BWP->transform_precoding ? 0 : 1, UL_BWP->dci_format, NR_RNTI_C, target_ss, false);
 }
 
 void reset_srs_stats(NR_UE_info_t *UE) {
