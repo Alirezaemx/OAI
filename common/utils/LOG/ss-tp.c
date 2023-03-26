@@ -19,20 +19,16 @@
  *      contact@openairinterface.org
  */
 
-#include "mac_rrc_dl_handler.h"
+/*! \file ss-tp.c
+* \brief System Simulator lttng trace implementaion
+* \author Yangxiong Peng
+* \date 2023
+* \version 0.5
+* @ingroup util
 
-#include "mac_proto.h"
-#include "openair2/RRC/NR/rrc_gNB_UE_context.h"
-#include "openair2/LAYER2/nr_rlc/nr_rlc_oai_api.h"
+*/
+#define TRACEPOINT_CREATE_PROBES
+#define TRACEPOINT_DEFINE
 
-#include "NR_RRCSetup.h"
-#include "NR_DL-CCCH-Message.h"
-#include "NR_CellGroupConfig.h"
+#include "ss-tp.h"
 
-int dl_rrc_message(module_id_t module_id, const f1ap_dl_rrc_message_t *dl_rrc)
-{
-  LOG_I(NR_MAC, "DL RRC Message Transfer with %d bytes for RNTI %04x SRB %d\n", dl_rrc->rrc_container_length, dl_rrc->rnti, dl_rrc->srb_id);
-
-  nr_rlc_srb_recv_sdu(dl_rrc->rnti, dl_rrc->srb_id, dl_rrc->rrc_container, dl_rrc->rrc_container_length);
-  return 0;
-}
