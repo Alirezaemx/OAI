@@ -190,7 +190,7 @@ void nr_feptx_prec(RU_t *ru,int frame_tx,int tti_tx) {
 
     if (ru->do_precoding == 0 || (ru->nb_tx == 1 && ru->nb_log_antennas == 1)) {
       for (i = 0; i < ru->nb_log_antennas; ++i)
-        ru->common.txdataF_BF[i] = &gNB->common_vars.txdataF[i][txdataF_offset];
+        ru->common.txdataF_BF[i] = (int32_t*)&gNB->common_vars.txdataF[i][txdataF_offset];
     } else {
       for (i = 0; i < ru->nb_log_antennas; ++i) {
         memcpy((void *)ru->common.txdataF[i], (void *)&gNB->common_vars.txdataF[i][txdataF_offset], fp->samples_per_slot_wCP * sizeof(int32_t));
