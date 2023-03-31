@@ -54,21 +54,19 @@ __m128i rho_rmi __attribute__((aligned(16)));
 // QPSK
 //----------------------------------------------------------------------------------------------
 
-int nr_dlsch_qpsk_llr(NR_DL_FRAME_PARMS *frame_parms,
-                   int32_t *rxdataF_comp,
-                   int16_t *dlsch_llr,
-                   uint8_t symbol,
-                   uint32_t len,
-                   uint8_t first_symbol_flag,
-                   uint16_t nb_rb)
+int nr_dlsch_qpsk_llr(const NR_DL_FRAME_PARMS *frame_parms,
+                      const int32_t *rxdataF_comp,
+                      int16_t *dlsch_llr,
+                      const uint32_t len,
+                      const uint16_t nb_rb)
 {
 
-  c16_t *rxF   = (c16_t *)&rxdataF_comp[((int32_t)symbol*nb_rb*12)];
+  c16_t *rxF   = (c16_t *)rxdataF_comp;
   c16_t *llr32 = (c16_t *)dlsch_llr;
   int i;
 
   if (!llr32) {
-    LOG_E(PHY,"nr_dlsch_qpsk_llr: llr is null, symbol %d, llr32=%p\n",symbol, llr32);
+    LOG_E(PHY,"nr_dlsch_qpsk_llr: llr is null, llr32=%p\n", llr32);
     return(-1);
   }
 
@@ -95,23 +93,21 @@ int nr_dlsch_qpsk_llr(NR_DL_FRAME_PARMS *frame_parms,
 // 16-QAM
 //----------------------------------------------------------------------------------------------
 
-void nr_dlsch_16qam_llr(NR_DL_FRAME_PARMS *frame_parms,
-                     int32_t *rxdataF_comp,
-                     int16_t *dlsch_llr,
-                     int32_t *dl_ch_mag,
-                     uint8_t symbol,
-                     uint32_t len,
-                     uint8_t first_symbol_flag,
-                     uint16_t nb_rb)
+void nr_dlsch_16qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
+                        const int32_t *rxdataF_comp,
+                        const int16_t *dlsch_llr,
+                        int32_t *dl_ch_mag,
+                        const uint32_t len,
+                        const uint16_t nb_rb)
 {
 
 #if defined(__x86_64__) || defined(__i386__)
-  __m128i *rxF = (__m128i*)&rxdataF_comp[(symbol*nb_rb*12)];
+  __m128i *rxF = (__m128i*)rxdataF_comp;
   __m128i *ch_mag;
   __m128i llr128[2];
   uint32_t *llr32;
 #elif defined(__arm__) || defined(__aarch64__)
-  int16x8_t *rxF = (int16x8_t*)&rxdataF_comp[(symbol*nb_rb*12)];
+  int16x8_t *rxF = (int16x8_t*)rxdataF_comp;
   int16x8_t *ch_mag;
   int16x8_t xmm0;
   int16_t *llr16;
@@ -138,11 +134,11 @@ void nr_dlsch_16qam_llr(NR_DL_FRAME_PARMS *frame_parms,
  // printf("len=%d\n", len);
   len_mod4 = len&3;
  // printf("len_mod4=%d\n", len_mod4);
-  len>>=2;  // length in quad words (4 REs)
+  int nlen = len>>2;  // length in quad words (4 REs)
  // printf("len>>=2=%d\n", len);
-  len+=(len_mod4==0 ? 0 : 1);
+  nlen+=(len_mod4==0 ? 0 : 1);
  // printf("len+=%d\n", len);
-  for (i=0; i<len; i++) {
+  for (i=0; i<nlen; i++) {
 
 #if defined(__x86_64__) || defined(__i386)
     __m128i xmm0;
@@ -197,21 +193,19 @@ void nr_dlsch_16qam_llr(NR_DL_FRAME_PARMS *frame_parms,
 // 64-QAM
 //----------------------------------------------------------------------------------------------
 
-void nr_dlsch_64qam_llr(NR_DL_FRAME_PARMS *frame_parms,
-			int32_t *rxdataF_comp,
-			int16_t *dlsch_llr,
-			int32_t *dl_ch_mag,
-			int32_t *dl_ch_magb,
-			uint8_t symbol,
-			uint32_t len,
-			uint8_t first_symbol_flag,
-			uint16_t nb_rb)
+void nr_dlsch_64qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
+                        const int32_t *rxdataF_comp,
+                        int16_t *dlsch_llr,
+                        const int32_t *dl_ch_mag,
+                        const int32_t *dl_ch_magb,
+                        const uint32_t len,
+                        const uint16_t nb_rb)
 {
 #if defined(__x86_64__) || defined(__i386__)
-  __m128i *rxF = (__m128i*)&rxdataF_comp[(symbol*nb_rb*12)];
+  __m128i *rxF = (__m128i*)rxdataF_comp;
   __m128i *ch_mag,*ch_magb;
 #elif defined(__arm__) || defined(__aarch64__)
-  int16x8_t *rxF = (int16x8_t*)&rxdataF_comp[(symbol*nb_rb*12)];
+  int16x8_t *rxF = (int16x8_t*)rxdataF_comp;
   int16x8_t *ch_mag,*ch_magb,xmm1,xmm2;
 #endif
   int i,len2;
@@ -230,9 +224,8 @@ void nr_dlsch_64qam_llr(NR_DL_FRAME_PARMS *frame_parms,
 
 //  printf("nr_dlsch_64qam_llr: symbol %d,nb_rb %d, len %d,pbch_pss_sss_adjust %d\n",symbol,nb_rb,len,pbch_pss_sss_adjust);
 
-/*  LOG_I(PHY,"nr_dlsch_64qam_llr [symb %d / FirstSym %d / Length %d]: @LLR Buff %x \n",
+/*  LOG_I(PHY,"nr_dlsch_64qam_llr [symb %d / Length %d]: @LLR Buff %x \n",
              symbol,
-             first_symbol_flag,
              len,
              dlsch_llr,
              pllr_symbol);*/
@@ -340,18 +333,16 @@ void nr_dlsch_64qam_llr(NR_DL_FRAME_PARMS *frame_parms,
 // 256-QAM
 //----------------------------------------------------------------------------------------------
 
-void nr_dlsch_256qam_llr(NR_DL_FRAME_PARMS *frame_parms,
-                     int32_t *rxdataF_comp,
-                     int16_t *dlsch_llr,
-                     int32_t *dl_ch_mag,
-                     int32_t *dl_ch_magb,
-                     int32_t *dl_ch_magr,
-                     uint8_t symbol,
-                     uint32_t len,
-                     uint8_t first_symbol_flag,
-                     uint16_t nb_rb)
+void nr_dlsch_256qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
+                         const int32_t *rxdataF_comp,
+                         int16_t *dlsch_llr,
+                         const int32_t *dl_ch_mag,
+                         const int32_t *dl_ch_magb,
+                         const int32_t *dl_ch_magr,
+                         const uint32_t len,
+                         const uint16_t nb_rb)
 {
-  __m128i *rxF = (__m128i*)&rxdataF_comp[(symbol*nb_rb*12)];
+  __m128i *rxF = (__m128i*)rxdataF_comp;
   __m128i *ch_mag,*ch_magb,*ch_magr;
 
   int i,len2;

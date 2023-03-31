@@ -204,7 +204,7 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   NR_UE_CSI_RS **const csirs_vars        = ue->csirs_vars;
   NR_UE_SRS **const srs_vars             = ue->srs_vars;
 
-  int i, slot, symb, gNB_id;
+  int slot, symb, gNB_id;
 
   LOG_I(PHY, "Initializing UE vars for gNB TXant %u, UE RXant %u\n", fp->nb_antennas_tx, fp->nb_antennas_rx);
 
@@ -214,10 +214,10 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   AssertFatal( nb_connected_gNB <= NUMBER_OF_CONNECTED_gNB_MAX, "n_connected_gNB is too large" );
   // init phy_vars_ue
 
-  for (i=0; i<fp->Lmax; i++)
+  for (int i=0; i<fp->Lmax; i++)
     ue->measurements.ssb_rsrp_dBm[i] = INT_MIN;
 
-  for (i=0; i<4; i++) {
+  for (int i=0; i<4; i++) {
     ue->rx_gain_max[i] = 135;
     ue->rx_gain_med[i] = 128;
     ue->rx_gain_byp[i] = 120;
@@ -287,25 +287,31 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   ///////////
   ////////////////////////////////////////////////////////////////////////////////////////////
 
-  for (i=0; i<10; i++)
+  for (int i=0; i<10; i++)
     ue->tx_power_dBm[i]=-127;
 
   // init TX buffers
   common_vars->txdata  = (c16_t **)malloc16(fp->nb_antennas_tx*sizeof(c16_t *));
   common_vars->txdataF = (c16_t **)malloc16(fp->nb_antennas_tx*sizeof(c16_t *));
 
-  for (i=0; i<fp->nb_antennas_tx; i++) {
+  for (int i=0; i<fp->nb_antennas_tx; i++) {
     common_vars->txdata[i]  = (c16_t *)malloc16_clear((fp->samples_per_frame) * sizeof(c16_t));
     common_vars->txdataF[i] = (c16_t *)malloc16_clear((fp->samples_per_frame) * sizeof(c16_t));
   }
 
   // init RX buffers
-  common_vars->rxdata   = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
-  common_vars->rxdataF   = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
+  common_vars->rxdata  = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
+  for (int i = 0; i < NR_SYMBOLS_PER_SLOT; i++) {
+    common_vars->rxdataSymb[i] = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
+    common_vars->rxdataF[i] = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
+  }
 
-  for (i=0; i<fp->nb_antennas_rx; i++) {
+  for (int i=0; i<fp->nb_antennas_rx; i++) {
     common_vars->rxdata[i] = (c16_t *)malloc16_clear((2 * (fp->samples_per_frame)+fp->ofdm_symbol_size) * sizeof(c16_t));
-    common_vars->rxdataF[i] = (c16_t *)malloc16_clear((2 * (fp->samples_per_frame)+fp->ofdm_symbol_size) * sizeof(c16_t));
+    for (int j = 0; j < NR_SYMBOLS_PER_SLOT; j++) {
+      common_vars->rxdataSymb[j][i] = (c16_t *)malloc16_clear((fp->ofdm_symbol_size + fp->nb_prefix_samples0) * sizeof(c16_t));
+      common_vars->rxdataF[j][i] = (c16_t *)malloc16_clear(fp->ofdm_symbol_size * sizeof(c16_t));
+    }
   }
 
   // ceil(((NB_RB<<1)*3)/32) // 3 RE *2(QPSK)
@@ -372,7 +378,7 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
       }
     }
     ue->nr_csi_info->csi_rs_generated_signal = (int32_t **)malloc16(NR_MAX_NB_PORTS * sizeof(int32_t *) );
-    for (i=0; i<NR_MAX_NB_PORTS; i++) {
+    for (int i=0; i<NR_MAX_NB_PORTS; i++) {
       ue->nr_csi_info->csi_rs_generated_signal[i] = (int32_t *) malloc16_clear(fp->samples_per_frame_wCP * sizeof(int32_t));
     }
 
@@ -420,10 +426,14 @@ void term_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
 
   for (int i = 0; i < fp->nb_antennas_rx; i++) {
     free_and_zero(common_vars->rxdata[i]);
+    for (int j = 0; j < NR_SYMBOLS_PER_SLOT; j++) {
+      free_and_zero(common_vars->rxdataF[j][i]);
+      free_and_zero(common_vars->rxdataSymb[j][i]);
+    }
     free_and_zero(common_vars->rxdataF[i]);
+    free_and_zero(common_vars->rxdataSymb[i]);
   }
   free_and_zero(common_vars->rxdata);
-  free_and_zero(common_vars->rxdataF);
 
   for (int slot = 0; slot < fp->slots_per_frame; slot++) {
     for (int symb = 0; symb < fp->symbols_per_slot; symb++)

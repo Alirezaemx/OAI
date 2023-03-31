@@ -46,6 +46,8 @@
 #define NR_MAX_OFDM_SYMBOL_SIZE 4096
 
 #define NR_SYMBOLS_PER_SLOT 14
+#define NR_SEARCH_SPACE_PER_SYMBOL 2
+#define NR_MAX_PARALLEL_SLOT_PROCS 2
 
 #define ONE_OVER_SQRT2_Q15 23170
 #define ONE_OVER_TWO_Q15 16384
@@ -128,6 +130,17 @@ typedef struct {
   bool csi_im_meas_computed;
   uint32_t interference_plus_noise_power;
 } nr_csi_info_t;
+
+typedef struct nr_csi_phy_parms_s {
+  uint8_t N_cdm_groups;
+  uint8_t CDM_group_size;
+  uint8_t k_prime;
+  uint8_t l_prime;
+  uint8_t N_ports;
+  uint8_t j_cdm[16];
+  uint8_t k_overline[16];
+  uint8_t l_overline[16];
+} nr_csi_phy_parms_t;
 
 typedef struct NR_DL_FRAME_PARMS NR_DL_FRAME_PARMS;
 

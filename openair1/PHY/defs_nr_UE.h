@@ -123,6 +123,12 @@ typedef enum {
   NR_SSS_EST,
 } NR_CHANNEL_EST_t;
 
+typedef enum {
+  SCHEDULED,
+  PROCESSING,
+  DONE
+} NR_UE_PHY_CHANNEL_STATE_t;
+
 #define debug_msg if (((mac_xface->frame%100) == 0) || (mac_xface->frame < 50)) msg
 
 typedef struct {
@@ -238,8 +244,9 @@ typedef struct {
   /// Should point to the same memory as PHY_vars->rx_vars[a].RX_DMA_BUFFER.
   /// - first index: rx antenna [0..nb_antennas_rx[
   /// - second index: sample [0..2*FRAME_LENGTH_COMPLEX_SAMPLES+2048[
-  c16_t **rxdataF;
+  c16_t **rxdataF[NR_SYMBOLS_PER_SLOT];
 
+  c16_t **rxdataSymb[NR_SYMBOLS_PER_SLOT];
   /// holds output of the sync correlator
   int32_t *sync_corr;
   /// estimated frequency offset (in radians) for all subcarriers
@@ -590,6 +597,8 @@ typedef struct {
   time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
   time_stats_t pdsch_procedures_stat;
+  time_stats_t pdsch_post_proc;
+  time_stats_t pdsch_pre_proc;
   time_stats_t pdsch_procedures_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t dlsch_procedures_stat;
 
@@ -652,6 +661,7 @@ typedef struct nr_phy_data_s {
   NR_UE_PDCCH_CONFIG phy_pdcch_config;
   NR_UE_DLSCH_t dlsch[2];
 } nr_phy_data_t;
+
 /* this structure is used to pass both UE phy vars and
  * proc to the function UE_thread_rxn_txnp4
  */
@@ -661,7 +671,40 @@ typedef struct nr_rxtx_thread_data_s {
   int writeBlockSize;
   nr_phy_data_t phy_data;
   int tx_wait_for_dlsch;
+  notifiedFIFO_t *txFifo;
 } nr_rxtx_thread_data_t;
+
+typedef struct nr_ue_symb_data_s {
+  PHY_VARS_NR_UE *UE;
+  UE_nr_rxtx_proc_t *proc;
+  int symbol;
+  c16_t *rxdataF_ext;
+  nr_phy_data_t *phy_data;
+  c16_t *ptrs_phase_per_slot;
+  int32_t *ptrs_re_per_slot;
+  c16_t *rxdataF_comp;
+  c16_t *pdsch_dl_ch_estimates;
+  c16_t *pdsch_dl_ch_est_ext;
+  int32_t *dl_ch_mag;
+  int32_t *dl_ch_magb;
+  int32_t *dl_ch_magr;
+  notifiedFIFO_t *symbProcRes;
+  notifiedFIFO_t *dmrsSymbProcRes;
+  int llrSize;
+  int16_t *layer_llr;
+  time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+  NR_UE_PHY_CHANNEL_STATE_t *pdsch_state;
+  NR_UE_PHY_CHANNEL_STATE_t *pdcch_state;
+  NR_UE_PHY_CHANNEL_STATE_t *pusch_state;
+} nr_ue_symb_data_t;
+
+typedef struct nr_csi_symbol_res_s {
+  int rsrpSum1;
+  int rsrpSum2;
+  int rsrpDbm;
+  int count;
+} nr_csi_symbol_res_t;
 
 typedef struct LDPCDecode_ue_s {
   PHY_VARS_NR_UE *phy_vars_ue;

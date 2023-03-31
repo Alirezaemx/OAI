@@ -932,7 +932,7 @@ int main(int argc, char **argv)
   UE->phy_sim_rxdataF = calloc(sizeof(int32_t *) * frame_parms->nb_antennas_rx * g_nrOfLayers, frame_parms->samples_per_slot_wCP * sizeof(int32_t));
   UE->phy_sim_pdsch_llr = calloc(1, (8 * (3 * 8 * 8448)) * sizeof(int16_t)); // Max length
   UE->phy_sim_pdsch_rxdataF_ext = calloc(sizeof(int32_t *) * frame_parms->nb_antennas_rx * g_nrOfLayers, rx_size);
-  UE->phy_sim_pdsch_rxdataF_comp = calloc(sizeof(int32_t *) * frame_parms->nb_antennas_rx * g_nrOfLayers, rx_size);
+  UE->phy_sim_pdsch_rxdataF_comp = calloc(1, sizeof(int32_t *) * frame_parms->nb_antennas_rx * g_nrOfLayers * rx_size);
   UE->phy_sim_pdsch_dl_ch_estimates = calloc(sizeof(int32_t *) * frame_parms->nb_antennas_rx * g_nrOfLayers, rx_size);
   UE->phy_sim_pdsch_dl_ch_estimates_ext = calloc(sizeof(int32_t *) * frame_parms->nb_antennas_rx * g_nrOfLayers, rx_size);
   int a_segments = MAX_NUM_NR_DLSCH_SEGMENTS_PER_LAYER*NR_MAX_NB_LAYERS;  //number of segments to be allocated
@@ -1163,12 +1163,73 @@ int main(int argc, char **argv)
         nr_ue_dcireq(&dcireq); //to be replaced with function pointer later
         nr_ue_scheduled_response(&scheduled_response);
 
-        pbch_pdcch_processing(UE,
-                              &UE_proc,
-                              &phy_data);
-        pdsch_processing(UE,
-                         &UE_proc,
-                         &phy_data);
+        /* Data required for the duration of slot */
+        c16_t **pdsch_dl_ch_estimates[NR_SYMBOLS_PER_SLOT];
+
+        c16_t ptrs_phase_per_slot[frame_parms->nb_antennas_rx][NR_SYMBOLS_PER_SLOT];
+        memset(ptrs_phase_per_slot, 0, sizeof(ptrs_phase_per_slot));
+
+        int32_t ptrs_re_per_slot[frame_parms->nb_antennas_rx][NR_SYMBOLS_PER_SLOT];
+        memset(ptrs_re_per_slot, 0, sizeof(ptrs_re_per_slot));
+
+        c16_t ***rxdataF_comp[NR_SYMBOLS_PER_SLOT];
+
+        int32_t ***dl_ch_mag[NR_SYMBOLS_PER_SLOT];
+
+        int32_t ***dl_ch_magb[NR_SYMBOLS_PER_SLOT];
+
+        int32_t ***dl_ch_magr[NR_SYMBOLS_PER_SLOT];
+
+        notifiedFIFO_t resFifo;
+        initNotifiedFIFO(&resFifo);
+
+        notifiedFIFO_t dmrsResFifo;
+        initNotifiedFIFO(&dmrsResFifo);
+
+        nr_ue_symb_data_t symb_data = {.UE = UE,
+                                      .proc = &UE_proc,
+                                      .phy_data = &phy_data,
+                                      .ptrs_phase_per_slot = &ptrs_phase_per_slot,
+                                      .ptrs_re_per_slot = &ptrs_re_per_slot,
+                                      .pdsch_dl_ch_estimates = &pdsch_dl_ch_estimates,
+                                      .rxdataF_comp = &rxdataF_comp,
+                                      .dl_ch_mag = &dl_ch_mag,
+                                      .dl_ch_magb = &dl_ch_magb,
+                                      .dl_ch_magr = &dl_ch_magr,
+                                      .symbProcRes = &resFifo,
+                                      .dmrsSymbProcRes = &dmrsResFifo};
+        for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+          /* OFDM Demodulation */
+          nr_slot_fep(UE,
+                      &UE_proc,
+                      symbol,
+                      UE->common_vars.rxdataF[symbol],
+                      NULL);
+          /* PDCCH processing */
+          NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data.phy_pdcch_config;
+          const int nb_symb_pdcch = get_max_pdcch_symb(phy_pdcch_config);
+          const int start_symb_pdcch = get_min_pdcch_start_symb(phy_pdcch_config);
+          const int last_symb_pdcch = start_symb_pdcch + nb_symb_pdcch - 1;
+          if (last_symb_pdcch == symbol) {
+            pdcch_processing(UE, &UE_proc, &phy_data); /* start after receiving the last PDCCH symbol */
+            continue;
+          }
+
+          /* PDSCH processing */
+          NR_UE_DLSCH_t *dlsch = phy_data.dlsch;
+          const int pdsch_start_symbol = dlsch[0].dlsch_config.start_symbol;
+          const int pdsch_num_symbols = dlsch[0].dlsch_config.number_symbols;
+          const int pdsch_last_symbol = pdsch_start_symbol + pdsch_num_symbols - 1;
+          symb_data.symbol = symbol;
+          if ((symbol < pdsch_last_symbol) &&
+              (symbol >= pdsch_start_symbol)) {
+            pdsch_symbol_proc_start(symb_data);
+          } else if (symbol == pdsch_last_symbol) {
+            pdsch_symbol_proc_start(symb_data);
+            pdsch_symbol_proc_end(symb_data);
+          }
+        }
+        free_pdsch_slot_proc_buffers(&symb_data);
         
         //----------------------------------------------------------
         //---------------------- count errors ----------------------

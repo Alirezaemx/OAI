@@ -84,32 +84,31 @@ int16_t get_kRE_ref(uint8_t dmrs_antenna_port, uint8_t pusch_dmrs_type, uint8_t 
 
 /*******************************************************************
 *
-* NAME :         set_ptrs_symb_idx
+* NAME :         get_ptrs_symb_idx
 *
-* PARAMETERS :   ptrs_symbols           PTRS OFDM symbol indicies bit mask
-*                duration_in_symbols    number of scheduled PUSCH ofdm symbols
+* PARAMETERS :   duration_in_symbols    number of scheduled PUSCH ofdm symbols
 *                start_symbol           first ofdm symbol of PUSCH within slot
 *                L_ptrs                 the parameter L_ptrs
 *                ul_dmrs_symb_pos       bitmap of the time domain positions of the DMRS symbols in the scheduled PUSCH
 *
-* RETURN :       sets the bit map of PTRS ofdm symbol indicies
+* RETURN :       PTRS OFDM symbol indicies bit mask
 *
 * DESCRIPTION :  3GPP TS 38.211 6.4.1.2.2.1
 *
 *********************************************************************/
 
-void set_ptrs_symb_idx(uint16_t *ptrs_symbols,
-                       uint8_t duration_in_symbols,
-                       uint8_t start_symbol,
-                       uint8_t L_ptrs,
-                       uint16_t ul_dmrs_symb_pos) {
+int get_ptrs_symb_idx(const int  duration_in_symbols,
+                       const int start_symbol,
+                       const int L_ptrs,
+                       const int ul_dmrs_symb_pos) {
 
+  const int last_symbol   = start_symbol + duration_in_symbols - 1;
   int i = 0;
   int l_ref = start_symbol;
-  const int last_symbol   = start_symbol + duration_in_symbols - 1;
+  int ptrs_symbols = 0;
   if (L_ptrs==0) {
     LOG_E(PHY,"bug: impossible L_ptrs\n");
-    *ptrs_symbols = 0;
+    ptrs_symbols = 0;
     return;
   }
 
@@ -132,9 +131,10 @@ void set_ptrs_symb_idx(uint16_t *ptrs_symbols,
       continue;
     }
 
-    *ptrs_symbols = *ptrs_symbols | (1<<(l_ref + i*L_ptrs));
+    ptrs_symbols = ptrs_symbols | (1<<(l_ref + i*L_ptrs));
     i++;
   }
+  return ptrs_symbols;
 }
 
 /*******************************************************************
@@ -242,20 +242,20 @@ int8_t get_next_estimate_in_slot(uint16_t  ptrsSymbPos,uint16_t  dmrsSymbPos, ui
  *  perform phase estimation from regenerated PTRS SC and channel compensated
  *  signal
  *********************************************************************/
-void nr_ptrs_cpe_estimation(uint8_t K_ptrs,
-                            uint8_t ptrsReOffset,
-                            uint8_t dmrsConfigType,
-                            uint16_t nb_rb,
-                            uint16_t rnti,
-                            unsigned char Ns,
-                            unsigned char symbol,
-                            uint16_t ofdm_symbol_size,
+void nr_ptrs_cpe_estimation(const uint8_t K_ptrs,
+                            const uint8_t ptrsReOffset,
+                            const uint8_t dmrsConfigType,
+                            const uint16_t nb_rb,
+                            const uint16_t rnti,
+                            const unsigned char Ns,
+                            const unsigned char symbol,
+                            const uint16_t ofdm_symbol_size,
+                            const uint32_t *gold_seq,
                             int16_t *rxF_comp,
-                            uint32_t *gold_seq,
                             int16_t *error_est,
                             int32_t *ptrs_sc)
 {
-//#define DEBUG_PTRS 1
+#define DEBUG_PTRS 1
   uint8_t               is_ptrs_re       = 0;
   uint16_t              re_cnt           = 0;
   uint16_t              cnt              = 0;

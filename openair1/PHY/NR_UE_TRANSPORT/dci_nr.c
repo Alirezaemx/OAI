@@ -340,7 +340,7 @@ void nr_pdcch_channel_level(int32_t rx_size,
 
 // This function will extract the mapped DM-RS PDCCH REs as per 38.211 Section 7.4.1.3.2 (Mapping to physical resources)
 void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
-                                 c16_t rxdataF[][rxdataF_sz],
+                                 c16_t **rxdataF,
                                  int32_t est_size,
                                  int32_t dl_ch_estimates[][est_size],
                                  int32_t rx_size,
@@ -415,40 +415,40 @@ void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
       // first we set initial conditions for pointer to rxdataF depending on the situation of the first RB within the CORESET (c_rb = n_BWP_start)
       if (((c_rb + n_BWP_start) < (frame_parms->N_RB_DL >> 1)) && ((frame_parms->N_RB_DL & 1) == 0)) {
         //if RB to be treated is lower than middle system bandwidth then rxdataF pointed at (offset + c_br + symbol * ofdm_symbol_size): even case
-        rxF = (int32_t *)&rxdataF[aarx][(frame_parms->first_carrier_offset + 12 * c_rb + (symbol * (frame_parms->ofdm_symbol_size)))+n_BWP_start*12];
-        LOG_DDD("in even case c_rb (%d) is lower than half N_RB_DL -> rxF = &rxdataF[aarx = (%d)][(frame_parms->first_carrier_offset + 12 * c_rb + (symbol * (frame_parms->ofdm_symbol_size))) = (%d)]\n",
-               c_rb,aarx,(frame_parms->first_carrier_offset + 12 * c_rb + (symbol * (frame_parms->ofdm_symbol_size))));
+        rxF = (int32_t *)&rxdataF[aarx][(frame_parms->first_carrier_offset + 12 * c_rb)+n_BWP_start*12];
+        LOG_DDD("in even case c_rb (%d) is lower than half N_RB_DL -> rxF = &rxdataF[aarx = (%d)][(frame_parms->first_carrier_offset + 12 * c_rb) = (%d)]\n",
+               c_rb,aarx,(frame_parms->first_carrier_offset + 12 * c_rb));
       }
 
       if (((c_rb + n_BWP_start) >= (frame_parms->N_RB_DL >> 1)) && ((frame_parms->N_RB_DL & 1) == 0)) {
         // number of RBs is even  and c_rb is higher than half system bandwidth (we don't skip DC)
         // if these conditions are true the pointer has to be situated at the 1st part of the rxdataF
-        rxF = (int32_t *)&rxdataF[aarx][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) + symbol * frame_parms->ofdm_symbol_size]; // we point at the 1st part of the rxdataF in symbol
-        LOG_DDD("in even case c_rb (%d) is higher than half N_RB_DL (not DC) -> rxF = &rxdataF[aarx = (%d)][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) + symbol * frame_parms->ofdm_symbol_size = (%d)]\n",
-               c_rb,aarx,(12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) + symbol * frame_parms->ofdm_symbol_size));
+        rxF = (int32_t *)&rxdataF[aarx][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1))]; // we point at the 1st part of the rxdataF in symbol
+        LOG_DDD("in even case c_rb (%d) is higher than half N_RB_DL (not DC) -> rxF = &rxdataF[aarx = (%d)][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) = (%d)]\n",
+               c_rb,aarx,(12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1))));
       }
 
       if (((c_rb + n_BWP_start) < (frame_parms->N_RB_DL >> 1)) && ((frame_parms->N_RB_DL & 1) != 0)) {
         //if RB to be treated is lower than middle system bandwidth then rxdataF pointed at (offset + c_br + symbol * ofdm_symbol_size): odd case
-        rxF = (int32_t *)&rxdataF[aarx][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) + symbol * frame_parms->ofdm_symbol_size];
-        LOG_DDD("in odd case c_rb (%d) is lower or equal than half N_RB_DL -> rxF = &rxdataF[aarx = (%d)][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) + symbol * frame_parms->ofdm_symbol_size = (%d)]\n",
-               c_rb,aarx,(frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) + symbol * frame_parms->ofdm_symbol_size));
+        rxF = (int32_t *)&rxdataF[aarx][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) ];
+        LOG_DDD("in odd case c_rb (%d) is lower or equal than half N_RB_DL -> rxF = &rxdataF[aarx = (%d)][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) = (%d)]\n",
+               c_rb,aarx,(frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start)));
       }
 
       if (((c_rb + n_BWP_start) > (frame_parms->N_RB_DL >> 1)) && ((frame_parms->N_RB_DL & 1) != 0)) {
         // number of RBs is odd  and   c_rb is higher than half system bandwidth + 1
         // if these conditions are true the pointer has to be situated at the 1st part of the rxdataF just after the first IQ symbols of the RB containing DC
-        rxF = (int32_t *)&rxdataF[aarx][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) - 6 + symbol * frame_parms->ofdm_symbol_size]; // we point at the 1st part of the rxdataF in symbol
-        LOG_DDD("in odd case c_rb (%d) is higher than half N_RB_DL (not DC) -> rxF = &rxdataF[aarx = (%d)][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) - 6 + symbol * frame_parms->ofdm_symbol_size = (%d)]\n",
-               c_rb,aarx,(12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) - 6 + symbol * frame_parms->ofdm_symbol_size));
+        rxF = (int32_t *)&rxdataF[aarx][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) - 6]; // we point at the 1st part of the rxdataF in symbol
+        LOG_DDD("in odd case c_rb (%d) is higher than half N_RB_DL (not DC) -> rxF = &rxdataF[aarx = (%d)][12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) - 6 = (%d)]\n",
+               c_rb,aarx,(12*(c_rb + n_BWP_start - (frame_parms->N_RB_DL>>1)) - 6 ));
       }
 
       if (((c_rb + n_BWP_start) == (frame_parms->N_RB_DL >> 1)) && ((frame_parms->N_RB_DL & 1) != 0)) { // treatment of RB containing the DC
         // if odd number RBs in system bandwidth and first RB to be treated is higher than middle system bandwidth (around DC)
         // we have to treat the RB in two parts: first part from i=0 to 5, the data is at the end of rxdataF (pointing at the end of the table)
-        rxF = (int32_t *)&rxdataF[aarx][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) + symbol * frame_parms->ofdm_symbol_size];
-        LOG_DDD("in odd case c_rb (%d) is half N_RB_DL + 1 we treat DC case -> rxF = &rxdataF[aarx = (%d)][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) + symbol * frame_parms->ofdm_symbol_size = (%d)]\n",
-               c_rb,aarx,(frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) + symbol * frame_parms->ofdm_symbol_size));
+        rxF = (int32_t *)&rxdataF[aarx][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start)];
+        LOG_DDD("in odd case c_rb (%d) is half N_RB_DL + 1 we treat DC case -> rxF = &rxdataF[aarx = (%d)][frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start) = (%d)]\n",
+               c_rb,aarx,(frame_parms->first_carrier_offset + 12 * (c_rb + n_BWP_start)));
         j = 0;
 
         for (i = 0; i < 6; i++) { //treating first part of the RB note that i=5 would correspond to DC. We treat it in NR
@@ -467,9 +467,9 @@ void nr_pdcch_extract_rbs_single(uint32_t rxdataF_sz,
         }
 
         // then we point at the begining of the symbol part of rxdataF do process second part of RB
-        rxF = (int32_t *)&rxdataF[aarx][symbol * frame_parms->ofdm_symbol_size]; // we point at the 1st part of the rxdataF in symbol
-        LOG_DDD("in odd case c_rb (%d) is half N_RB_DL +1 we treat DC case -> rxF = &rxdataF[aarx = (%d)][symbol * frame_parms->ofdm_symbol_size = (%d)]\n",
-               c_rb,aarx,(symbol * frame_parms->ofdm_symbol_size));
+        rxF = (int32_t *)&rxdataF[aarx][0]; // we point at the 1st part of the rxdataF in symbol
+        LOG_DDD("in odd case c_rb (%d) is half N_RB_DL +1 we treat DC case -> rxF = &rxdataF[aarx = (%d)]]\n",
+               c_rb,aarx);
         for (; i < 12; i++) {
           if ((i != 9)) {
             dl_ch0_ext[j] = dl_ch0[i];
@@ -666,13 +666,198 @@ void nr_pdcch_detection_mrc(NR_DL_FRAME_PARMS *frame_parms,
 #endif
 }
 
+/* Produce LLRs from received PDCCH signal */
+void nr_rx_pdcch_symbol(const PHY_VARS_NR_UE *ue,
+                        const UE_nr_rxtx_proc_t *proc,
+                        const int symbol,
+                        const int ss_idx,
+                        const nr_phy_data_t *phy_data,
+                        const int llrSize,
+                        const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                        int16_t llr[llrSize])
+{
+  const int nr_slot_rx = proc->nr_slot_rx;
+  const int frame_rx = proc->frame_rx;
+  const NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
+  const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
+  const fapi_nr_coreset_t *coreset = &phy_pdcch_config->pdcch_config[ss_idx].coreset;
+  const int32_t pdcch_est_size = ((((fp->symbols_per_slot*(fp->ofdm_symbol_size+LTE_CE_FILTER_LENGTH))+15)/16)*16);
+  __attribute__ ((aligned(16))) int32_t pdcch_dl_ch_estimates[4*fp->nb_antennas_rx][pdcch_est_size];
+
+  nr_pdcch_channel_estimation(ue,
+                              proc,
+                              symbol,
+                              *coreset,
+                              fp->first_carrier_offset,
+                              phy_pdcch_config->pdcch_config[ss_idx].BWPStart,
+                              pdcch_est_size,
+                              pdcch_dl_ch_estimates,
+                              rxdataF);
+
+  const int32_t rx_size = ((4 * fp->N_RB_DL * 12 + 31) >> 5) << 5;
+  __attribute__ ((aligned(32))) int32_t rxdataF_ext[fp->nb_antennas_rx][rx_size];
+  __attribute__ ((aligned(32))) int32_t rxdataF_comp[fp->nb_antennas_rx][rx_size];
+  __attribute__ ((aligned(32))) int32_t pdcch_dl_ch_estimates_ext[fp->nb_antennas_rx][rx_size];
+  memset(rxdataF_comp, 0, sizeof(rxdataF_comp));
+
+  int n_rb;
+  int rb_offset;
+  get_coreset_rballoc(coreset->frequency_domain_resource,&n_rb,&rb_offset);
+
+  nr_pdcch_extract_rbs_single(ue->frame_parms.samples_per_slot_wCP,
+                              rxdataF,
+                              pdcch_est_size,
+                              pdcch_dl_ch_estimates,
+                              rx_size,
+                              rxdataF_ext,
+                              pdcch_dl_ch_estimates_ext,
+                              symbol,
+                              fp,
+                              coreset->frequency_domain_resource,
+                              n_rb,
+                              phy_pdcch_config->pdcch_config[ss_idx].BWPStart);
+
+  int avgs;
+  int avgP[4];
+
+  nr_pdcch_channel_level(rx_size,
+                         pdcch_dl_ch_estimates_ext,
+                         fp,
+                         avgP,
+                         symbol,
+                         n_rb);
+  avgs = 0;
+
+  for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++)
+    avgs = cmax(avgs, avgP[aarx]);
+
+  const int log2_maxh = (log2_approx(avgs) / 2) + 5;  //+frame_parms->nb_antennas_rx;
+
+  nr_pdcch_channel_compensation(rx_size,
+                                rxdataF_ext,
+                                pdcch_dl_ch_estimates_ext,
+                                rxdataF_comp,
+                                NULL,
+                                fp,
+                                symbol,
+                                log2_maxh,
+                                n_rb); // log2_maxh+I0_shift
+
+  if (fp->nb_antennas_rx > 1)
+    nr_pdcch_detection_mrc(fp, rx_size, rxdataF_comp, symbol);
+
+  nr_pdcch_llr(fp,
+               rx_size,
+               rxdataF_comp,
+               llr,
+               symbol,
+               n_rb);
+}
+
+/* Decode DCI from LLRs */
+int nr_pdcch_decode(const UE_nr_rxtx_proc_t *proc,
+                    const int ss_idx,
+                    const nr_phy_data_t *phy_data,
+                    const int llrSize,
+                    const int16_t llr[phy_data->phy_pdcch_config.nb_search_space][llrSize],
+                    PHY_VARS_NR_UE *ue,
+                    fapi_nr_dci_indication_t *dci_ind)
+{
+  const int frame_rx = proc->frame_rx;
+  const int nr_slot_rx = proc->nr_slot_rx;
+  const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
+
+  const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15 = &phy_pdcch_config->pdcch_config[ss_idx];
+
+  start_meas(&ue->dlsch_rx_pdcch_stats);
+
+  /// PDCCH/DCI e-sequence (input to rate matching).
+  const int32_t pdcch_e_rx_size = NR_MAX_PDCCH_SIZE;
+  int16_t pdcch_e_rx[pdcch_e_rx_size];
+
+  int n_rb;
+  int rb_offset;
+  get_coreset_rballoc((const uint8_t*)rel15->coreset.frequency_domain_resource,&n_rb,&rb_offset);
+
+  nr_pdcch_demapping_deinterleaving((uint32_t *) llr,
+                                    (uint32_t *) pdcch_e_rx,
+                                    rel15->coreset.duration,
+                                    rel15->coreset.StartSymbolIndex,
+                                    n_rb,
+                                    rel15->coreset.RegBundleSize,
+                                    rel15->coreset.InterleaverSize,
+                                    rel15->coreset.ShiftIndex,
+                                    rel15->number_of_candidates,
+                                    rel15->CCE,
+                                    rel15->L);
+
+  const int dci_cnt = nr_dci_decoding_procedure(ue, proc, pdcch_e_rx, rel15, &ue->dci_thres, dci_ind);
+
+  for (int i = 0; i < dci_cnt; i++) {
+    LOG_D(PHY,"[UE  %d] AbsSubFrame %d.%d: DCI %i of %d total DCIs found --> rnti %x : format %d\n",
+          ue->Mod_id,frame_rx%1024,nr_slot_rx,
+          i + 1,
+          dci_cnt,
+          dci_ind->dci_list[i].rnti,
+          dci_ind->dci_list[i].dci_format);
+  }
+
+  dci_ind->number_of_dcis += dci_cnt;
+
+  return dci_cnt;
+}
+
+/* Generates PDCCH LLRs from received symbol for each Search-Space */
+void nr_pdcch_generate_llr(const PHY_VARS_NR_UE *ue,
+                           const UE_nr_rxtx_proc_t *proc,
+                           const int symbol,
+                           const nr_phy_data_t *phy_data,
+                           const int llrSize,
+                           const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                           int16_t llr[phy_data->phy_pdcch_config.nb_search_space][llrSize])
+{
+  const int frame_rx = proc->frame_rx;
+  const int nr_slot_rx = proc->nr_slot_rx;
+  const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
+
+  for (int ss_idx = 0; ss_idx < phy_pdcch_config->nb_search_space; ss_idx++) {
+    nr_rx_pdcch_symbol(ue, proc, symbol, ss_idx, phy_data, llrSize, rxdataF, llr[ss_idx]);
+  }
+}
+
+/* Decode DCI from LLRs for each Search-Space and send to MAC */
+int nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
+                            const int llrSize,
+                            PHY_VARS_NR_UE *ue,
+                            nr_phy_data_t *phy_data,
+                            const int16_t llr[phy_data->phy_pdcch_config.nb_search_space][llrSize])
+{
+  const int frame_rx = proc->frame_rx;
+  const int nr_slot_rx = proc->nr_slot_rx;
+  const NR_UE_PDCCH_CONFIG *phy_pdcch_config = (const NR_UE_PDCCH_CONFIG *)&phy_data->phy_pdcch_config;
+
+  nr_downlink_indication_t dl_indication;
+  fapi_nr_dci_indication_t dci_ind = {0};
+  int dci_cnt = 0;
+
+  for (int ss_idx = 0; ss_idx < phy_pdcch_config->nb_search_space; ss_idx++) {
+    dci_cnt += nr_pdcch_decode(proc, ss_idx, (const nr_phy_data_t *)phy_data, llrSize, llr[ss_idx], ue, &dci_ind);
+  }
+
+  /* Send to MAC */
+  nr_fill_dl_indication(&dl_indication, &dci_ind, NULL, proc, ue, phy_data);
+  ue->if_inst->dl_indication(&dl_indication, NULL);
+
+  return dci_cnt;
+}
+
 int32_t nr_rx_pdcch(PHY_VARS_NR_UE *ue,
                     UE_nr_rxtx_proc_t *proc,
                     int32_t pdcch_est_size,
                     int32_t pdcch_dl_ch_estimates[][pdcch_est_size],
                     int16_t *pdcch_e_rx,
                     fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
-                    c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]) {
+                    c16_t **rxdataF[NR_SYMBOLS_PER_SLOT]) {
 
   uint32_t frame = proc->frame_rx;
   uint32_t slot  = proc->nr_slot_rx;
@@ -704,7 +889,7 @@ int32_t nr_rx_pdcch(PHY_VARS_NR_UE *ue,
     LOG_D(PHY,"in nr_pdcch_extract_rbs_single(rxdataF -> rxdataF_ext || dl_ch_estimates -> dl_ch_estimates_ext)\n");
 
     nr_pdcch_extract_rbs_single(ue->frame_parms.samples_per_slot_wCP,
-                                rxdataF,
+                                rxdataF[s],
                                 pdcch_est_size,
                                 pdcch_dl_ch_estimates,
                                 rx_size,
@@ -836,14 +1021,13 @@ void nr_pdcch_unscrambling(int16_t *e_rx,
 /* This function compares the received DCI bits with
  * re-encoded DCI bits and returns the number of mismatched bits
  */
-static uint16_t nr_dci_false_detection(uint64_t *dci,
-                                       int16_t *soft_in,
-                                       int encoded_length,
-                                       int rnti,
-                                       int8_t messageType,
-                                       uint16_t messageLength,
-                                       uint8_t aggregation_level
-                                       ) {
+static uint16_t nr_dci_false_detection(const int16_t *soft_in,
+                                       const int encoded_length,
+                                       const int rnti,
+                                       const int8_t messageType,
+                                       const uint16_t messageLength,
+                                       const uint8_t aggregation_level,
+                                       uint64_t *dci) {
 
   uint32_t encoder_output[NR_MAX_DCI_SIZE_DWORD];
   polar_encoder_fast(dci, (void*)encoder_output, rnti, 1,
@@ -864,12 +1048,13 @@ static uint16_t nr_dci_false_detection(uint64_t *dci,
   return x;
 }
 
-uint8_t nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
-                                  UE_nr_rxtx_proc_t *proc,
-                                  int16_t *pdcch_e_rx,
-                                  fapi_nr_dci_indication_t *dci_ind,
-                                  fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15) {
-
+uint8_t nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
+                                  const UE_nr_rxtx_proc_t *proc,
+                                  const int16_t *pdcch_e_rx,
+                                  const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
+                                  int *dci_thres,
+                                  fapi_nr_dci_indication_t *dci_ind)
+{
   //int gNB_id = 0;
   int16_t tmp_e[16*108];
   rnti_t n_rnti;
@@ -921,9 +1106,9 @@ uint8_t nr_dci_decoding_procedure(PHY_VARS_NR_UE *ue,
       if (crc == n_rnti) {
         LOG_D(PHY, "(%i.%i) Received dci indication (rnti %x,dci format %s,n_CCE %d,payloadSize %d,payload %llx)\n",
               proc->frame_rx, proc->nr_slot_rx,n_rnti,nr_dci_format_string[rel15->dci_format_options[k]],CCEind,dci_length,*(unsigned long long*)dci_estimation);
-        uint16_t mb = nr_dci_false_detection(dci_estimation,tmp_e,L*108,n_rnti, NR_POLAR_DCI_MESSAGE_TYPE, dci_length, L);
-        ue->dci_thres = (ue->dci_thres + mb) / 2;
-        if (mb > (ue->dci_thres+30)) {
+        uint16_t mb = nr_dci_false_detection(tmp_e, L*108, n_rnti, NR_POLAR_DCI_MESSAGE_TYPE, dci_length, L, dci_estimation);
+        *dci_thres = (*dci_thres + mb) / 2;
+        if (mb > (*dci_thres+30)) {
           LOG_W(PHY,"DCI false positive. Dropping DCI index %d. Mismatched bits: %d/%d. Current DCI threshold: %d\n",j,mb,L*108,ue->dci_thres);
           continue;
         }

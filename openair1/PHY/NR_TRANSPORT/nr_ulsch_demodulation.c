@@ -1967,7 +1967,7 @@ void nr_rx_pusch(PHY_VARS_gNB *gNB,
 
   if (gNB->chest_time == 1) { // averaging time domain channel estimates
     nr_chest_time_domain_avg(frame_parms,
-                             pusch_vars->ul_ch_estimates,
+                             (c16_t***)pusch_vars->ul_ch_estimates,
                              rel15_ul->nr_of_symbols,
                              rel15_ul->start_symbol_index,
                              rel15_ul->ul_dmrs_symb_pos,
