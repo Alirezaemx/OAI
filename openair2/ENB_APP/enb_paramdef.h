@@ -166,7 +166,7 @@ typedef enum {
 #define RU_NUM_TP_CORES               38
 #define RU_NUM_INTERFACES             39
 #define RU_HALF_SLOT_PARALLELIZATION  40
-#define RU_RU_THREAD_CORE 41
+#define RU_RU_THREAD_CORE	       41 
 /*-----------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            RU configuration parameters                                                                  */
 /*   optname                                   helpstr   paramflags    XXXptr          defXXXval                   type      numelt        */
@@ -214,6 +214,7 @@ typedef enum {
   {CONFIG_STRING_RU_NUM_TP_CORES,              HLP_RU_NUM_TP_CORES,               0,       .uptr=NULL,       .defintval=2,                 TYPE_UINT,        0}, \
   {CONFIG_STRING_RU_NUM_INTERFACES,            HLP_RU_NUM_INTERFACES,             0,       .uptr=NULL,       .defintval=1,                 TYPE_UINT,        0}, \
   {CONFIG_STRING_RU_HALF_SLOT_PARALLELIZATION, HLP_RU_HALF_SLOT_PARALLELIZATION,  0,       .uptr=NULL,       .defintval=1,                 TYPE_UINT,        0}, \
+  {CONFIG_STRING_RU_RU_THREAD_CORE,		HLP_RU_RU_THREAD_CORE,		   0,       .uptr=NULL,       .defintval=-1,                TYPE_INT,         0}, \
 }
 // clang-format on
 
