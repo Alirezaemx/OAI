@@ -53,7 +53,7 @@
 #define CONFIG_STRING_L1_PUSCH_DTX_THRESHOLD               "pusch_dtx_threshold"
 #define CONFIG_STRING_L1_SRS_DTX_THRESHOLD                 "srs_dtx_threshold"
 #define CONFIG_STRING_L1_MAX_LDPC_ITERATIONS               "max_ldpc_iterations"
-#define CONFIG_STRING_L1_TX_AMP_BACKOFF_dB "tx_amp_backoff_dB"
+#define CONFIG_STRING_L1_TX_AMP_BACKOFF_dB                 "tx_amp_backoff_dB"
 #define HLP_TP_SIZ "thread_pool_size paramter removed, please use --thread-pool"
 /*----------------------------------------------------------------------------------------------------------------------------------------------------*/
 /*                                            L1 configuration parameters                                                                             */
@@ -96,7 +96,7 @@
 #define L1_PUSCH_DTX_THRESHOLD                             13
 #define L1_SRS_DTX_THRESHOLD                               14
 #define L1_MAX_LDPC_ITERATIONS                             15
-#define L1_TX_AMP_BACKOFF_dB 15
+#define L1_TX_AMP_BACKOFF_dB 				   16
 
 /*----------------------------------------------------------------------------------------------------------------------------------------------------*/
 #endif
