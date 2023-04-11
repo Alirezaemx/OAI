@@ -453,6 +453,7 @@ rb_found:
 	msg = itti_alloc_new_message(TASK_RLC_ENB, 0, F1AP_UL_RRC_MESSAGE);
 	uint8_t *message_buffer = itti_malloc (TASK_RLC_ENB, TASK_DU_F1, size);
 	memcpy (message_buffer, buf, size);
+  // TODO: fill correct IDs
 	F1AP_UL_RRC_MESSAGE(msg).rnti = ue->rnti;
 	F1AP_UL_RRC_MESSAGE(msg).srb_id = rb_id;
 	F1AP_UL_RRC_MESSAGE(msg).rrc_container = message_buffer;

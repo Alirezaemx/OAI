@@ -277,7 +277,7 @@ typedef struct gNB_RRC_UE_s {
   e_NR_IntegrityProtAlgorithm        integrity_algorithm;
 
   NR_UE_STATE_t                      StatusRrc;
-  rnti_t                             rnti;
+  rnti_t                             rnti; // TODO: switch to cu_ue_id
   uint64_t                           random_ue_identity;
   // ID used locally by DU. The CU uses gNB_ue_ngap_id as identifier
   uint32_t du_ue_id;

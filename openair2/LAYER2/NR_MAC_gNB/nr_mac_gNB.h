@@ -672,6 +672,7 @@ typedef struct nr_mac_rrc_ul_if_s {
 typedef struct {
   rnti_t rnti;
   uid_t uid; // unique ID of this UE
+  uint32_t ue_cu_id; // used when forwarding messages
   /// scheduling control info
   nr_csi_report_t csi_report_template[MAX_CSI_REPORTCONFIG];
   NR_UE_sched_ctrl_t UE_sched_ctrl;
