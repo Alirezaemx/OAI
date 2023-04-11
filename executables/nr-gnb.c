@@ -51,6 +51,7 @@
 #include "PHY/NR_TRANSPORT/nr_transport_proto.h"
 #include "PHY/MODULATION/nr_modulation.h"
 #include "PHY/NR_TRANSPORT/nr_dlsch.h"
+#include "openair2/NR_PHY_INTERFACE/nr_sched_response.h"
 
 #undef MALLOC //there are two conflicting definitions, so we better make sure we don't use it at all
 //#undef FRAME_LENGTH_COMPLEX_SAMPLES //there are two conflicting definitions, so we better make sure we don't use it at all
@@ -136,6 +137,8 @@ void tx_func(void *param) {
     LOG_D(PHY, "gNB: %d.%d : calling RU TX function\n", syncMsgRU.frame_tx, syncMsgRU.slot_tx);
     ru_tx_func((void *)&syncMsgRU);
   }
+  /* this thread is done with the sched_info, decrease the reference counter */
+  deref_sched_response(info->sched_response_id);
 }
 
 void rx_func(void *param)
