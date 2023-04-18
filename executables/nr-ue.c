@@ -504,36 +504,25 @@ static void RU_write(nr_rxtx_thread_data_t *rxtxD) {
   UE_nr_rxtx_proc_t *proc = &rxtxD->proc;
 
   void *txp[NB_ANTENNAS_TX];
+  int slot = proc->nr_slot_tx;
   for (int i=0; i<UE->frame_parms.nb_antennas_tx; i++)
     txp[i] = (void *)&UE->common_vars.txdata[i][UE->frame_parms.get_samples_slot_timestamp(
-             proc->nr_slot_tx, &UE->frame_parms, 0)];
+             slot, &UE->frame_parms, 0)];
 
   radio_tx_burst_flag_t flags = TX_BURST_INVALID;
 
-  NR_UE_MAC_INST_t *mac = get_mac_inst(0);
-
   if (openair0_cfg[0].duplex_mode == duplex_mode_TDD && !get_softmodem_params()->continuous_tx) {
 
-    uint8_t tdd_period = mac->phy_config.config_req.tdd_table.tdd_period_in_slots;
-    int nrofUplinkSlots, nrofUplinkSymbols;
-    if (mac->scc) {
-      nrofUplinkSlots = mac->scc->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSlots;
-      nrofUplinkSymbols = mac->scc->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSymbols;
-    }
-    else {
-      nrofUplinkSlots = mac->scc_SIB->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSlots;
-      nrofUplinkSymbols = mac->scc_SIB->tdd_UL_DL_ConfigurationCommon->pattern1.nrofUplinkSymbols;
-    }
+    int slots_frame = UE->frame_parms.slots_per_frame;
+    int curr_slot = nr_ue_slot_select(&UE->nrUE_config, slot);
+    int next_slot = nr_ue_slot_select(&UE->nrUE_config, (slot + 1) % slots_frame);
+    int prev_slot = nr_ue_slot_select(&UE->nrUE_config, (slot + slots_frame - 1) % slots_frame);
 
-    int slot_tx_usrp = proc->nr_slot_tx;
-    uint8_t  num_UL_slots = nrofUplinkSlots + (nrofUplinkSymbols != 0);
-    uint8_t first_tx_slot = tdd_period - num_UL_slots;
-
-    if (slot_tx_usrp % tdd_period == first_tx_slot)
+    if (curr_slot != NR_DOWNLINK_SLOT && prev_slot == NR_DOWNLINK_SLOT)
       flags = TX_BURST_START;
-    else if (slot_tx_usrp % tdd_period == first_tx_slot + num_UL_slots - 1)
+    else if (curr_slot != NR_DOWNLINK_SLOT && next_slot == NR_DOWNLINK_SLOT)
       flags = TX_BURST_END;
-    else if (slot_tx_usrp % tdd_period > first_tx_slot)
+    else
       flags = TX_BURST_MIDDLE;
   } else {
     flags = TX_BURST_MIDDLE;
@@ -873,8 +862,8 @@ void *UE_thread(void *arg) {
     curMsg.proc.nr_slot_tx  = (absolute_slot + DURATION_RX_TO_TX) % nb_slot_frame;
     curMsg.proc.frame_rx    = (absolute_slot/nb_slot_frame) % MAX_FRAME_NUMBER;
     curMsg.proc.frame_tx    = ((absolute_slot+DURATION_RX_TO_TX)/nb_slot_frame) % MAX_FRAME_NUMBER;
-    curMsg.proc.rx_slot_type = nr_ue_slot_select(cfg, curMsg.proc.frame_rx, curMsg.proc.nr_slot_rx);
-    curMsg.proc.tx_slot_type = nr_ue_slot_select(cfg, curMsg.proc.frame_tx, curMsg.proc.nr_slot_tx);
+    curMsg.proc.rx_slot_type = nr_ue_slot_select(cfg, curMsg.proc.nr_slot_rx);
+    curMsg.proc.tx_slot_type = nr_ue_slot_select(cfg, curMsg.proc.nr_slot_tx);
     curMsg.proc.decoded_frame_rx=-1;
     //LOG_I(PHY,"Process slot %d total gain %d\n", slot_nr, UE->rx_total_gain_dB);
 
