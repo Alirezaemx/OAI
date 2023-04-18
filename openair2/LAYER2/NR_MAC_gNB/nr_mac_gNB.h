@@ -51,6 +51,7 @@
 /* RRC */
 #include "NR_BCCH-BCH-Message.h"
 #include "NR_CellGroupConfig.h"
+#include "NR_BCCH-DL-SCH-Message.h"
 
 /* PHY */
 #include "time_meas.h"
@@ -63,6 +64,7 @@
 /* MAC */
 #include "LAYER2/NR_MAC_COMMON/nr_mac_extern.h"
 #include "LAYER2/NR_MAC_COMMON/nr_mac_common.h"
+#include "LAYER2/MAC/mac.h"
 #include "NR_TAG.h"
 
 #include <openair3/UICC/usim_interface.h>
@@ -94,8 +96,9 @@ typedef enum {
   Msg2 = 1,
   WAIT_Msg3 = 2,
   Msg3_retransmission = 3,
-  Msg4 = 4,
-  WAIT_Msg4_ACK = 5
+  Msg3_dcch_dtch = 4,
+  Msg4 = 5,
+  WAIT_Msg4_ACK = 6
 } RA_gNB_state_t;
 
 typedef struct NR_preamble_ue {
@@ -163,8 +166,6 @@ typedef struct {
   uint8_t msg3_cqireq;
   /// Round of Msg3 HARQ
   uint8_t msg3_round;
-  /// Flag to indicate if Msg3 carries a DCCH or DTCH message
-  bool msg3_dcch_dtch;
   int msg3_startsymb;
   int msg3_nrsymb;
   /// TBS used for Msg4
@@ -195,8 +196,6 @@ typedef struct {
 
 /*! \brief gNB common channels */
 typedef struct {
-  int physCellId;
-  int p_gNB;
   int Ncp;
   int nr_band;
   frame_type_t frame_type;
@@ -615,6 +614,7 @@ typedef struct NR_mac_dir_stats {
   uint64_t errors;
   uint64_t total_bytes;
   uint32_t current_bytes;
+  uint64_t total_sdu_bytes;
   uint32_t total_rbs;
   uint32_t total_rbs_retx;
   uint32_t num_mac_sdu;
@@ -659,7 +659,6 @@ typedef struct {
   asn_enc_rval_t enc_rval;
   // UE selected beam index
   uint8_t UE_beam_index;
-  bool Msg3_dcch_dtch;
   bool Msg4_ACKed;
   uint32_t ra_timer;
   float ul_thr_ue;
@@ -721,24 +720,15 @@ typedef struct gNB_MAC_INST_s {
   uint16_t ulprbbl[MAX_BWP_SIZE];
   /// NFAPI Config Request Structure
   nfapi_nr_config_request_scf_t     config[NFAPI_CC_MAX];
-  /// NFAPI DL Config Request Structure
-  nfapi_nr_dl_tti_request_t         DL_req[NFAPI_CC_MAX];
   /// a PDCCH PDU groups DCIs per BWP and CORESET. The following structure
   /// keeps pointers to PDCCH PDUs within DL_req so that we can easily track
   /// PDCCH PDUs per CC/BWP/CORESET
   nfapi_nr_dl_tti_pdcch_pdu_rel15_t *pdcch_pdu_idx[NFAPI_CC_MAX][MAX_NUM_CORESET];
-  /// NFAPI UL TTI Request Structure, simple pointer into structure
-  /// UL_tti_req_ahead for current frame/slot
-  nfapi_nr_ul_tti_request_t        *UL_tti_req[NFAPI_CC_MAX];
   /// NFAPI UL TTI Request Structure for future TTIs, dynamically allocated
   /// because length depends on number of slots
   nfapi_nr_ul_tti_request_t        *UL_tti_req_ahead[NFAPI_CC_MAX];
   int UL_tti_req_ahead_size;
   int vrb_map_UL_size;
-  /// NFAPI HI/DCI0 Config Request Structure
-  nfapi_nr_ul_dci_request_t         UL_dci_req[NFAPI_CC_MAX];
-  /// NFAPI DL PDU structure
-  nfapi_nr_tx_data_request_t        TX_req[NFAPI_CC_MAX];
 
   NR_UEs_t UE_info;
 
@@ -799,7 +789,7 @@ typedef struct gNB_MAC_INST_s {
   NR_bler_options_t ul_bler;
   uint8_t min_grant_prb;
   uint8_t min_grant_mcs;
-
+  bool identity_pm;
   nr_mac_rrc_ul_if_t mac_rrc;
 
   int16_t frame;

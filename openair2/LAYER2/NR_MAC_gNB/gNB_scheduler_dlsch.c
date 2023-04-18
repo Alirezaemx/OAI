@@ -462,6 +462,7 @@ bool allocate_dl_retransmission(module_id_t module_id,
     uint16_t new_rbSize;
     bool success = nr_find_nb_rb(retInfo->Qm,
                                  retInfo->R,
+                                 1, // no transform precoding for DL
                                  layers,
                                  temp_tda.nrOfSymbols,
                                  temp_dmrs.N_PRB_DMRS * temp_dmrs.N_DMRS_SLOT,
@@ -630,9 +631,7 @@ void pf_dl(module_id_t module_id,
       else
         sched_pdsch->mcs = get_mcs_from_bler(bo, stats, &sched_ctrl->dl_bler_stats, max_mcs, frame);
       sched_pdsch->nrOfLayers = get_dl_nrOfLayers(sched_ctrl, current_BWP->dci_format);
-      sched_pdsch->pm_index = get_pm_index(UE,
-                                           sched_pdsch->nrOfLayers,
-                                           mac->xp_pdsch_antenna_ports);
+      sched_pdsch->pm_index = mac->identity_pm ? 0 : get_pm_index(UE, sched_pdsch->nrOfLayers, mac->xp_pdsch_antenna_ports);
       const uint8_t Qm = nr_get_Qm_dl(sched_pdsch->mcs, current_BWP->mcsTableIdx);
       const uint16_t R = nr_get_code_rate_dl(sched_pdsch->mcs, current_BWP->mcsTableIdx);
       uint32_t tbs = nr_compute_tbs(Qm,
@@ -764,6 +763,7 @@ void pf_dl(module_id_t module_id,
     //const int oh = 3 * sched_ctrl->dl_pdus_total + 2 * (frame == (sched_ctrl->ta_frame + 10) % 1024);
     nr_find_nb_rb(sched_pdsch->Qm,
                   sched_pdsch->R,
+                  1, // no transform precoding for DL
                   sched_pdsch->nrOfLayers,
                   tda_info->nrOfSymbols,
                   sched_pdsch->dmrs_parms.N_PRB_DMRS * sched_pdsch->dmrs_parms.N_DMRS_SLOT,
@@ -844,7 +844,7 @@ void nr_fr1_dlsch_preprocessor(module_id_t module_id, frame_t frame, sub_frame_t
         rballoc_mask);
 }
 
-nr_pp_impl_dl nr_init_fr1_dlsch_preprocessor(module_id_t module_id, int CC_id) {
+nr_pp_impl_dl nr_init_fr1_dlsch_preprocessor(int CC_id) {
   /* in the PF algorithm, we have to use the TBsize to compute the coefficient.
    * This would include the number of DMRS symbols, which in turn depends on
    * the time domain allocation. In case we are in a mixed slot, we do not want
@@ -873,8 +873,10 @@ nr_pp_impl_dl nr_init_fr1_dlsch_preprocessor(module_id_t module_id, int CC_id) {
 
 void nr_schedule_ue_spec(module_id_t module_id,
                          frame_t frame,
-                         sub_frame_t slot) {
-
+                         sub_frame_t slot,
+                         nfapi_nr_dl_tti_request_t *DL_req,
+                         nfapi_nr_tx_data_request_t *TX_req)
+{
   gNB_MAC_INST *gNB_mac = RC.nrmac[module_id];
 
   if (!is_xlsch_in_slot(gNB_mac->dlsch_slot_bitmap[slot / 64], slot))
@@ -885,7 +887,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
   const int CC_id = 0;
   NR_ServingCellConfigCommon_t *scc = gNB_mac->common_channels[CC_id].ServingCellConfigCommon;
   NR_UEs_t *UE_info = &gNB_mac->UE_info;
-  nfapi_nr_dl_tti_request_body_t *dl_req = &gNB_mac->DL_req[CC_id].dl_tti_request_body;
+  nfapi_nr_dl_tti_request_body_t *dl_req = &DL_req->dl_tti_request_body;
 
   UE_iterator(UE_info->list, UE) {
     NR_UE_sched_ctrl_t *sched_ctrl = &UE->UE_sched_ctrl;
@@ -1273,7 +1275,6 @@ void nr_schedule_ue_spec(module_id_t module_id,
           header->LCID = DL_SCH_LCID_PADDING;
           buf += sizeof(NR_MAC_SUBHEADER_LONG);
           header->L = htons(bufEnd-buf);
-          dlsch_total_bytes += bufEnd-buf;
 
           for (; ((intptr_t)buf) % 4; buf++)
             *buf = lrand48() & 0xff;
@@ -1304,6 +1305,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
       UE->mac_stats.dl.total_rbs += sched_pdsch->rbSize;
       UE->mac_stats.dl.num_mac_sdu += sdus;
       UE->mac_stats.dl.current_rbs = sched_pdsch->rbSize;
+      UE->mac_stats.dl.total_sdu_bytes += dlsch_total_bytes;
 
       /* save retransmission information */
       harq->sched_pdsch = *sched_pdsch;
@@ -1326,16 +1328,16 @@ void nr_schedule_ue_spec(module_id_t module_id,
         T_INT(frame), T_INT(slot), T_INT(current_harq_pid), T_BUFFER(harq->transportBlock, TBS));
     }
 
-    const int ntx_req = gNB_mac->TX_req[CC_id].Number_of_PDUs;
-    nfapi_nr_pdu_t *tx_req = &gNB_mac->TX_req[CC_id].pdu_list[ntx_req];
+    const int ntx_req = TX_req->Number_of_PDUs;
+    nfapi_nr_pdu_t *tx_req = &TX_req->pdu_list[ntx_req];
     tx_req->PDU_length = TBS;
     tx_req->PDU_index  = pduindex;
     tx_req->num_TLV = 1;
     tx_req->TLVs[0].length = TBS + 2;
     memcpy(tx_req->TLVs[0].value.direct, harq->transportBlock, TBS);
-    gNB_mac->TX_req[CC_id].Number_of_PDUs++;
-    gNB_mac->TX_req[CC_id].SFN = frame;
-    gNB_mac->TX_req[CC_id].Slot = slot;
+    TX_req->Number_of_PDUs++;
+    TX_req->SFN = frame;
+    TX_req->Slot = slot;
     /* mark UE as scheduled */
     sched_pdsch->rbSize = 0;
   }

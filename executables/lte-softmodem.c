@@ -77,6 +77,7 @@ unsigned short config_frames[4] = {2,9,11,13};
 
 #include "create_tasks.h"
 
+#include "pdcp.h"
 
 #include "PHY/INIT/phy_init.h"
 
@@ -180,6 +181,21 @@ bool sdap_data_req(protocol_ctxt_t *ctxt_p,
   abort();
 }
 
+/* hack: gtp_itf.cpp requires this empty function to be defined here */
+bool nr_pdcp_data_req_drb(protocol_ctxt_t *ctxt_pP,
+                          const srb_flag_t srb_flagP,
+                          const rb_id_t rb_id,
+                          const mui_t muiP,
+                          const confirm_t confirmP,
+                          const sdu_size_t sdu_buffer_size,
+                          unsigned char *const sdu_buffer,
+                          const pdcp_transmission_mode_t mode,
+                          const uint32_t *const sourceL2Id,
+                          const uint32_t *const destinationL2Id)
+{
+  abort();
+}
+
 /* forward declarations */
 void set_default_frame_parms(LTE_DL_FRAME_PARMS *frame_parms[MAX_NUM_CCs]);
 
@@ -241,8 +257,8 @@ unsigned int build_rfdc(int dcoff_i_rxfe, int dcoff_q_rxfe) {
   return (dcoff_i_rxfe + (dcoff_q_rxfe<<8));
 }
 
-
-void exit_function(const char *file, const char *function, const int line, const char *s) {
+void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
+{
   int ru_id;
 
   if (s != NULL) {
@@ -266,8 +282,12 @@ void exit_function(const char *file, const char *function, const int line, const
     }
   }
 
-  sleep(1); //allow lte-softmodem threads to exit first
-  exit(1);
+  if (assert) {
+    abort();
+  } else {
+    sleep(1); // allow lte-softmodem threads to exit first
+    exit(EXIT_SUCCESS);
+  }
 }
 
 
@@ -609,7 +629,7 @@ int main ( int argc, char **argv )
   //getchar();
   if(IS_SOFTMODEM_DOSCOPE)
      load_softscope("enb",NULL);
-  itti_wait_tasks_end();
+  itti_wait_tasks_end(NULL);
 
 #if USING_GPROF
   // Save the gprof data now (rather than via atexit) in case we crash while shutting down

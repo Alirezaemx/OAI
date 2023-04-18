@@ -59,10 +59,11 @@ unsigned short config_frames[4] = {2,9,11,13};
 #include "common/utils/LOG/log.h"
 #include "common/utils/LOG/vcd_signal_dumper.h"
 #include "UTIL/OPT/opt.h"
+#include "LAYER2/nr_pdcp/nr_pdcp_oai_api.h"
 
 #include "intertask_interface.h"
 
-#include "PHY/INIT/phy_init.h"
+#include "PHY/INIT/nr_phy_init.h"
 
 #include "system.h"
 #include <openair2/GNB_APP/gnb_app.h>
@@ -175,6 +176,12 @@ openair0_config_t openair0_cfg[MAX_CARDS];
 
 double cpuf;
 
+/* hack: pdcp_run() is required by 4G scheduler which is compiled into
+ * nr-softmodem because of linker issues */
+void pdcp_run(const protocol_ctxt_t *const ctxt_pP)
+{
+  abort();
+}
 
 /* see file openair2/LAYER2/MAC/main.c for why abstraction_flag is needed
  * this is very hackish - find a proper solution
@@ -249,8 +256,8 @@ unsigned int build_rfdc(int dcoff_i_rxfe, int dcoff_q_rxfe) {
 #define KBLU  "\x1B[34m"
 #define RESET "\033[0m"
 
-
-void exit_function(const char *file, const char *function, const int line, const char *s) {
+void exit_function(const char *file, const char *function, const int line, const char *s, const int assert)
+{
   int ru_id;
 
   if (s != NULL) {
@@ -274,8 +281,12 @@ void exit_function(const char *file, const char *function, const int line, const
     }
   }
 
-  sleep(1); //allow lte-softmodem threads to exit first
-  exit(1);
+  if (assert) {
+    abort();
+  } else {
+    sleep(1); // allow nr-softmodem threads to exit first
+    exit(EXIT_SUCCESS);
+  }
 }
 
 
@@ -528,7 +539,7 @@ void wait_gNBs(void) {
 void terminate_task(task_id_t task_id, module_id_t mod_id) {
   LOG_I(GNB_APP, "sending TERMINATE_MESSAGE to task %s (%d)\n", itti_get_task_name(task_id), task_id);
   MessageDef *msg;
-  msg = itti_alloc_new_message (ENB_APP, 0, TERMINATE_MESSAGE);
+  msg = itti_alloc_new_message (TASK_ENB_APP, 0, TERMINATE_MESSAGE);
   itti_send_msg_to_task (task_id, ENB_MODULE_ID_TO_INSTANCE(mod_id), msg);
 }
 
@@ -551,13 +562,8 @@ void init_pdcp(void) {
     PDCP_USE_NETLINK_BIT | LINK_ENB_PDCP_TO_IP_DRIVER_BIT | ENB_NAS_USE_TUN_BIT | SOFTMODEM_NOKRNMOD_BIT:
     LINK_ENB_PDCP_TO_GTPV1U_BIT;
   
-  if (!get_softmodem_params()->nsa) {
-    if (!NODE_IS_DU(get_node_type())) {
-      pdcp_layer_init();
-      nr_pdcp_module_init(pdcp_initmask, 0);
-    }
-  } else {
-    pdcp_layer_init();
+  if (!NODE_IS_DU(get_node_type())) {
+    nr_pdcp_layer_init();
     nr_pdcp_module_init(pdcp_initmask, 0);
   }
 }
@@ -728,7 +734,7 @@ int main( int argc, char **argv ) {
   // wait for end of program
   printf("Entering ITTI signals handler\n");
   printf("TYPE <CTRL-C> TO TERMINATE\n");
-  itti_wait_tasks_end();
+  itti_wait_tasks_end(NULL);
   printf("Returned from ITTI signal handler\n");
   oai_exit=1;
   printf("oai_exit=%d\n",oai_exit);

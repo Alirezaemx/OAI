@@ -40,8 +40,6 @@
 #include "LAYER2/MAC/mac_extern.h"
 #include "RRC/LTE/rrc_proto.h"
 #include "pdcp_primitives.h"
-#include "OCG.h"
-#include "OCG_extern.h"
 #include "otg_rx.h"
 #include "common/utils/LOG/log.h"
 #include <inttypes.h>
@@ -57,6 +55,7 @@
 #include "intertask_interface.h"
 #include "openair3/S1AP/s1ap_eNB.h"
 #include <pthread.h>
+#include "pdcp.h"
 
 #  include "openair3/ocp-gtpu/gtp_itf.h"
 #include <openair3/ocp-gtpu/gtp_itf.h>
@@ -648,7 +647,6 @@ pdcp_data_ind(
         exit(1);
       }
 
-      //uint8_t dc = pdcp_get_dc_filed((unsigned char*)sdu_buffer_pP->data);
     }
 
     /*
