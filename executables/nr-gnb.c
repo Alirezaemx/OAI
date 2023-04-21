@@ -102,6 +102,7 @@ time_stats_t softmodem_stats_rx_sf; // total rx time
 
 
 #include "executables/thread-common.h"
+#include "common/utils/LATSEQ/latseq.h"
 
 
 //#define TICK_TO_US(ts) (ts.diff)
@@ -279,7 +280,7 @@ void rx_func(void *param) {
     res->key = slot_tx;
     pushNotifiedFIFO(&gNB->L1_tx_out, res);
   }
-
+  LATSEQ_P("U End.rx.func--", "::fm%d.sl%d", frame_rx, slot_rx);
 #if 0
   LOG_D(PHY, "rxtx:%lld nfapi:%lld phy:%lld tx:%lld rx:%lld prach:%lld ofdm:%lld ",
         softmodem_stats_rxtx_sf.diff_now, nfapi_meas.diff_now,

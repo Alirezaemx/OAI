@@ -46,6 +46,7 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
   int              rx_deliv_sn;
   uint32_t         rx_deliv_hfn;
 
+  LATSEQ_P("U pdcp.to.decode--", "::x%d", 1);
   if (size < 1) {
     LOG_E(PDCP, "bad PDU received (size = %d)\n", size);
     return;
@@ -76,6 +77,8 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
   }
   entity->stats.rxpdu_sn = rcvd_sn;
 
+  LATSEQ_P("U pdcp.to.decode--", "::sn%d", rcvd_sn);
+
   /* SRBs always have MAC-I, even if integrity is not active */
   if (entity->has_integrity || entity->type == NR_PDCP_SRB) {
     integrity_size = 4;
@@ -88,7 +91,7 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
 
     entity->stats.rxpdu_dd_pkts++;
     entity->stats.rxpdu_dd_bytes += size;
-
+    LATSEQ_P("U pdcp.decoded--pdcp.discarded.badpdusize", "::sn%d", rcvd_sn);
 
     return;
   }
@@ -120,7 +123,7 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
       LOG_E(PDCP, "discard NR PDU, integrity failed\n");
       entity->stats.rxpdu_dd_pkts++;
       entity->stats.rxpdu_dd_bytes += size;
-
+      LATSEQ_P("U pdcp.decoded--pdcp.discarded.integrityfailed", "::sn%d", rcvd_sn);
 
     }
   }
@@ -130,7 +133,7 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
     LOG_W(PDCP, "discard NR PDU rcvd_count=%d, entity->rx_deliv %d,sdu_in_list %d\n", rcvd_count,entity->rx_deliv,nr_pdcp_sdu_in_list(entity->rx_list,rcvd_count));
     entity->stats.rxpdu_dd_pkts++;
     entity->stats.rxpdu_dd_bytes += size;
-
+    LATSEQ_P("U pdcp.decoded--pdcp.discarded.rcvdsmallerdeliv", "::sn%d", rcvd_sn);
 
     return;
   }
@@ -152,7 +155,7 @@ static void nr_pdcp_entity_recv_pdu(nr_pdcp_entity_t *entity,
     uint32_t count = entity->rx_deliv;
     while (entity->rx_list != NULL && count == entity->rx_list->count) {
       nr_pdcp_sdu_t *cur = entity->rx_list;
-      LATSEQ_P("U pdcp.decoded--sdap.sdu", "len%d::sn%d.count%d.rcvdcount%d.rcvdhfn%d", cur->size, rcvd_sn, count, rcvd_count, rcvd_hfn);
+      LATSEQ_P("U pdcp.decoded--sdap.sdu", "len%d::sn%d", cur->size, rcvd_sn);
       entity->deliver_sdu(entity->deliver_sdu_data, entity,
                           cur->buffer, cur->size, rcvd_sn);
       entity->rx_list = cur->next;
@@ -334,7 +337,8 @@ static void check_t_reordering(nr_pdcp_entity_t *entity)
   /* deliver all SDUs with count < rx_reord */
   while (entity->rx_list != NULL && entity->rx_list->count < entity->rx_reord) {
     nr_pdcp_sdu_t *cur = entity->rx_list;
-    LATSEQ_P("U pdcp.reorderdeliv1--sdap.sdu", "len%d::sn%d.count%d", cur->size, cur->count, cur->count);
+    LATSEQ_P("U pdcp.decoded--pdpc.outoforderdeliv", "len%d::sn%d", cur->size, cur->count);
+    LATSEQ_P("U pdpc.outoforderdeliv--sdap.sdu", "len%d::sn%d", cur->size, cur->count);
     entity->deliver_sdu(entity->deliver_sdu_data, entity,
                         cur->buffer, cur->size, cur->count);
     entity->rx_list = cur->next;
@@ -346,7 +350,8 @@ static void check_t_reordering(nr_pdcp_entity_t *entity)
   count = entity->rx_reord;
   while (entity->rx_list != NULL && count == entity->rx_list->count) {
     nr_pdcp_sdu_t *cur = entity->rx_list;
-    LATSEQ_P("U pdcp.reorderdeliv2--sdap.sdu", "len%d::sn%d.count%d", cur->size, cur->count, cur->count);
+    LATSEQ_P("U pdcp.decoded--pdcp.reorderdeliv", "len%d::sn%d", cur->size, cur->count);
+    LATSEQ_P("U pdcp.reorderdeliv--sdap.sdu", "len%d::sn%d", cur->size, cur->count);
     entity->deliver_sdu(entity->deliver_sdu_data, entity,
                         cur->buffer, cur->size, cur->count);
     entity->rx_list = cur->next;

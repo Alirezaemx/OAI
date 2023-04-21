@@ -215,6 +215,7 @@ void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
   NR_gNB_ULSCH_t *ulsch = rdata->ulsch;
   int r = rdata->segment_r;
   nfapi_nr_pusch_pdu_t *pusch_pdu = &gNB->ulsch[rdata->ulsch_id]->harq_processes[rdata->harq_pid]->ulsch_pdu;
+  LATSEQ_P("U Begin.post.decode--","::fm%d.sl%d", ulsch_harq->frame, ulsch_harq->slot);
   bool decodeSuccess = (rdata->decodeIterations <= rdata->decoderParms.numMaxIter);
   ulsch_harq->processedSegments++;
   LOG_D(PHY, "processing result of segment: %d, processed %d/%d\n",
@@ -222,7 +223,7 @@ void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
   gNB->nbDecode--;
   LOG_D(PHY,"remain to decoded in subframe: %d\n", gNB->nbDecode);
   if (decodeSuccess) {
-    LATSEQ_P("U mac.decoded--mac.demuxed","::frame%d.slot%d.ulschid%d.harqpid%d.harqround%d", ulsch_harq->frame, ulsch_harq->slot, rdata->ulsch_id, rdata->harq_pid, ulsch_harq->round);
+    LATSEQ_P("U mac.decoded--mac.demuxed","len%d::frame%d.slot%d.harqpid%d.harqround%d.mcs%d.ldpciter%d", rdata->Kr_bytes, ulsch_harq->frame, ulsch_harq->slot, rdata->harq_pid, ulsch_harq->round, pusch_pdu->mcs_index, rdata->decodeIterations);
     memcpy(ulsch_harq->b+rdata->offset,
            ulsch_harq->c[r],
            rdata->Kr_bytes - (ulsch_harq->F>>3) -((ulsch_harq->C>1)?3:0));
@@ -267,8 +268,12 @@ void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
 
       LOG_D(PHY, "ULSCH %d in error\n",rdata->ulsch_id);
       nr_fill_indication(gNB,ulsch_harq->frame, ulsch_harq->slot, rdata->ulsch_id, rdata->harq_pid, 1,0);
-      LATSEQ_P("U mac.decoded--mac.retx","::frame%d.slot%d.ulschid%d.harqpid%d", ulsch_harq->frame, ulsch_harq->slot, rdata->ulsch_id, rdata->harq_pid);
-      LATSEQ_P("U mac.retx--phy.demodulatestart","::harqpid%d.harqround%d", rdata->harq_pid, ulsch_harq->round+1);
+      if (ulsch_harq->round == 3) {
+        LATSEQ_P("U mac.decoded--mac.retxdrop","::frame%d.slot%d.harqpid%d", ulsch_harq->frame, ulsch_harq->slot, rdata->harq_pid);
+      } else {
+        LATSEQ_P("U mac.decoded--mac.retx.decodefailed","::frame%d.slot%d.framertx%d.slotrtx%d.harqpid%d", ulsch_harq->frame, ulsch_harq->slot, ulsch_harq->frame, ulsch_harq->slot, rdata->harq_pid);
+        LATSEQ_P("U mac.retx.decodefailed--phy.demodulatestart","::framertx%d.slotrtx%d.harqpid%d.harqround%d", ulsch_harq->frame, ulsch_harq->slot, rdata->harq_pid, ulsch_harq->round+1);
+      }
 //      dumpsig=1;
     }
 /*
@@ -311,6 +316,7 @@ void nr_postDecode(PHY_VARS_gNB *gNB, notifiedFIFO_elt_t *req) {
 
 void nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH_id, uint8_t harq_pid)
 {
+  LATSEQ_P("U Beginning.ulsch.procedures--", "::fm%d.sl%d", frame_rx, slot_rx);
   NR_DL_FRAME_PARMS *frame_parms = &gNB->frame_parms;
   nfapi_nr_pusch_pdu_t *pusch_pdu = &gNB->ulsch[ULSCH_id]->harq_processes[harq_pid]->ulsch_pdu;
   
@@ -371,7 +377,7 @@ void nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH
   //----------------------------------------------------------
   //--------------------- ULSCH decoding ---------------------
   //----------------------------------------------------------
-
+  LATSEQ_P("U before.ulsch.decoding--", "::x%d", 1);
   start_meas(&gNB->ulsch_decoding_stats);
   nr_ulsch_decoding(gNB,
                     ULSCH_id,
@@ -382,6 +388,7 @@ void nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH
                     slot_rx,
                     harq_pid,
                     G);
+  LATSEQ_P("U after.ulsch.decoding--", "::x%d", 1);
   if (enable_ldpc_offload ==0) {
     while (gNB->nbDecode > 0) {
       notifiedFIFO_elt_t *req = pullTpool(&gNB->respDecode, &gNB->threadPool);
@@ -392,6 +399,7 @@ void nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH
     }
   } 
   stop_meas(&gNB->ulsch_decoding_stats);
+  LATSEQ_P("U End.ulsch.procedures--", "::fm%d.sl%d", frame_rx, slot_rx);
 }
 
 
@@ -689,6 +697,7 @@ int check_srs_pdu(const nfapi_nr_srs_pdu_t *srs_pdu, nfapi_nr_srs_pdu_t *saved_s
 }
 
 int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
+  LATSEQ_P("U Beginning.phy.procedures.gNB.uespec--", "::fm%d.sl%d", frame_rx, slot_rx);
   /* those variables to log T_GNB_PHY_PUCCH_PUSCH_IQ only when we try to decode */
   int pucch_decode_done = 0;
   int pusch_decode_done = 0;
@@ -828,9 +837,9 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
 
           VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_RX_PUSCH,1);
 	        start_meas(&gNB->rx_pusch_stats);
-          LATSEQ_P("U phy.demodulatestart--phy.demodulateend","::frame%d.slot%d.ulschid%d.harqpid%d.harqround%d", frame_rx, slot_rx, ULSCH_id, harq_pid, ulsch_harq->round);
+          LATSEQ_P("U phy.demodulatestart--phy.demodulateend","::frame%d.slot%d.harqpid%d.harqround%d", frame_rx, slot_rx, harq_pid, ulsch_harq->round);
           nr_rx_pusch(gNB, ULSCH_id, frame_rx, slot_rx, harq_pid);
-          LATSEQ_P("U phy.demodulateend--mac.decoded","::frame%d.slot%d.ulschid%d.harqpid%d.harqround%d", frame_rx, slot_rx, ULSCH_id, harq_pid, ulsch_harq->round);
+          LATSEQ_P("U phy.demodulateend--mac.decoded","::frame%d.slot%d.harqpid%d.harqround%d", frame_rx, slot_rx, harq_pid, ulsch_harq->round);
           gNB->pusch_vars[ULSCH_id]->ulsch_power_tot=0;
           gNB->pusch_vars[ULSCH_id]->ulsch_noise_power_tot=0;
           for (int aarx=0;aarx<gNB->frame_parms.nb_antennas_rx;aarx++) {
@@ -839,6 +848,7 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
              gNB->pusch_vars[ULSCH_id]->ulsch_noise_power[aarx]/=num_dmrs;
              gNB->pusch_vars[ULSCH_id]->ulsch_noise_power_tot += gNB->pusch_vars[ULSCH_id]->ulsch_noise_power[aarx];
           }
+          LATSEQ_P("U Before.if--","::frame%d.slot%d", frame_rx, slot_rx);
           if (dB_fixed_x10(gNB->pusch_vars[ULSCH_id]->ulsch_power_tot) <
               dB_fixed_x10(gNB->pusch_vars[ULSCH_id]->ulsch_noise_power_tot) + gNB->pusch_thres) {
              NR_gNB_SCH_STATS_t *stats=get_ulsch_stats(gNB,ulsch);
@@ -849,20 +859,29 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
              gNB->pusch_vars[ULSCH_id]->ulsch_power_tot = gNB->pusch_vars[ULSCH_id]->ulsch_noise_power_tot;
              gNB->pusch_vars[ULSCH_id]->DTX=1;
              if (stats) stats->DTX++;
+             LATSEQ_P("U Before.second.if--","::frame%d.slot%d", frame_rx, slot_rx);
              if (!get_softmodem_params()->phy_test) {
                /* in case of phy_test mode, we still want to decode to measure execution time. 
                   Therefore, we don't yet call nr_fill_indication, it will be called later */
                nr_fill_indication(gNB,frame_rx, slot_rx, ULSCH_id, harq_pid, 1,1);
                pusch_DTX++;
+               if (ulsch_harq->round == 3) {
+                 LATSEQ_P("U mac.decoded--mac.retxdrop","::frame%d.slot%d.harqpid%d", frame_rx, slot_rx, harq_pid);
+               } else {
+                 LATSEQ_P("U mac.decoded--mac.retx.highnoise","::frame%d.slot%d.framertx%d.slotrtx%d.harqpid%d", frame_rx, slot_rx, frame_rx, slot_rx, harq_pid);
+                 LATSEQ_P("U mac.retx.highnoise--phy.demodulatestart","::framertx%d.slotrtx%d.harqpid%d.harqround%d", frame_rx, slot_rx, harq_pid, ulsch_harq->round+1);
+               }
                continue;
              }
           } else {
+            LATSEQ_P("U In.else--","::frame%d.slot%d", frame_rx, slot_rx);
             LOG_D(PHY, "PUSCH detected in %d.%d (%d,%d,%d)\n",frame_rx,slot_rx,
                   dB_fixed_x10(gNB->pusch_vars[ULSCH_id]->ulsch_power_tot),
                   dB_fixed_x10(gNB->pusch_vars[ULSCH_id]->ulsch_noise_power_tot),gNB->pusch_thres);
 
             gNB->pusch_vars[ULSCH_id]->DTX=0;
           }
+          LATSEQ_P("U After.if--","::frame%d.slot%d", frame_rx, slot_rx);
           stop_meas(&gNB->rx_pusch_stats);
           VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_RX_PUSCH,0);
           //LOG_M("rxdataF_comp.m","rxF_comp",gNB->pusch_vars[0]->rxdataF_comp[0],6900,1,1);
@@ -1101,5 +1120,6 @@ int phy_procedures_gNB_uespec_RX(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
   }
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_gNB_UESPEC_RX,0);
+  LATSEQ_P("U End.phy.procedures.gNB.uespec--","::fm%d.sl%d", frame_rx, slot_rx);
   return pusch_DTX;
 }

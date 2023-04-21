@@ -407,7 +407,7 @@ int nr_process_mac_pdu(instance_t module_idP,
         UE->mac_stats.ul.lc_bytes[rx_lcid] += mac_len;
 
         if (mac_len > 3)
-          LATSEQ_P("U mac.demuxed--rlc.decoded", "len%d::frame%d.slot%d.carriercompid%d.lcid%d.harqpid%d.bufaddress%u", mac_len, frameP, slot, CC_id, rx_lcid, harq_pid, pduP+mac_subheader_len);
+          LATSEQ_P("U mac.demuxed--rlc.decoded", "len%d::frame%d.slot%d.lcid%d.harqpid%d.bufaddress%u", mac_len, frameP, slot, rx_lcid, harq_pid, pduP+mac_subheader_len);
 
         mac_rlc_data_ind(module_idP,
                          UE->rnti,
