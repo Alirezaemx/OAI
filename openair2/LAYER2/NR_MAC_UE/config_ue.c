@@ -132,7 +132,7 @@ void config_common_ue_sa(NR_UE_MAC_INST_t *mac,
   // carrier config
   NR_FrequencyInfoDL_SIB_t *frequencyInfoDL = &scc->downlinkConfigCommon.frequencyInfoDL;
   int bw_index = get_supported_band_index(frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                          *frequencyInfoDL->frequencyBandList.list.array[0]->freqBandIndicatorNR,
+                                          *frequencyInfoDL->frequencyBandList.list.array[0]->freqBandIndicatorNR > 256 ? FR2 : FR1,
                                           frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
   cfg->carrier_config.dl_bandwidth = get_supported_bw_mhz(*frequencyInfoDL->frequencyBandList.list.array[0]->freqBandIndicatorNR > 256 ? FR2 : FR1, bw_index);
 
@@ -156,7 +156,7 @@ void config_common_ue_sa(NR_UE_MAC_INST_t *mac,
                     *frequencyInfoDL->frequencyBandList.list.array[0]->freqBandIndicatorNR :
                     *frequencyInfoUL->frequencyBandList->list.array[0]->freqBandIndicatorNR;
   bw_index = get_supported_band_index(frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                      UL_band_ind,
+                                      UL_band_ind > 256 ? FR2 : FR1,
                                       frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
   cfg->carrier_config.uplink_bandwidth = get_supported_bw_mhz(UL_band_ind > 256 ? FR2 : FR1, bw_index);
 
@@ -280,7 +280,7 @@ void config_common_ue(NR_UE_MAC_INST_t *mac,
 
   struct NR_FrequencyInfoDL *frequencyInfoDL = scc->downlinkConfigCommon->frequencyInfoDL;
   int bw_index = get_supported_band_index(frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                          *frequencyInfoDL->frequencyBandList.list.array[0],
+                                          *frequencyInfoDL->frequencyBandList.list.array[0] > 256 ? FR2 : FR1,
                                           frequencyInfoDL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
   cfg->carrier_config.dl_bandwidth = get_supported_bw_mhz(*frequencyInfoDL->frequencyBandList.list.array[0] > 256 ? FR2 : FR1, bw_index);
     
@@ -301,7 +301,7 @@ void config_common_ue(NR_UE_MAC_INST_t *mac,
 
   struct NR_FrequencyInfoUL *frequencyInfoUL = scc->uplinkConfigCommon->frequencyInfoUL;
   bw_index = get_supported_band_index(frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->subcarrierSpacing,
-                                      *frequencyInfoUL->frequencyBandList->list.array[0],
+                                      *frequencyInfoUL->frequencyBandList->list.array[0] > 256 ? FR2 : FR1,
                                       frequencyInfoUL->scs_SpecificCarrierList.list.array[0]->carrierBandwidth);
   cfg->carrier_config.uplink_bandwidth = get_supported_bw_mhz(*frequencyInfoUL->frequencyBandList->list.array[0] > 256 ? FR2 : FR1, bw_index);
 
