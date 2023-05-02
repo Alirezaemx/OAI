@@ -194,6 +194,7 @@ void websrv_setpoint(int x, int y, websrv_scopedata_msg_t *msg)
 }
 #endif
 static void commonGraph(OAIgraph_t *graph, int type, FL_Coord x, FL_Coord y, FL_Coord w, FL_Coord h, const char *label, FL_COLOR pointColor) {
+  memset(graph,0,sizeof(OAIgraph_t));
   if (type==WATERFALL) {
     graph->waterFallh=h-15;
     graph->waterFallAvg=malloc(sizeof(*graph->waterFallAvg) * graph->waterFallh);
