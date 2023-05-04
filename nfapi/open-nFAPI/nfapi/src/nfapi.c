@@ -765,7 +765,7 @@ int unpack_p7_tlv_list(unpack_p7_tlv_t unpack_fns[], uint16_t size, uint8_t **pp
 
           if((end - *ppReadPackedMsg) >= generic_tl.length) {
             // Advance past the unknown TLV
-            (*ppReadPackedMsg) += generic_tl.length + get_tlv_padding(generic_tl.length);;
+            (*ppReadPackedMsg) += generic_tl.length + get_tlv_padding(generic_tl.length);
           } else {
             // got ot the dn
             return 0;
