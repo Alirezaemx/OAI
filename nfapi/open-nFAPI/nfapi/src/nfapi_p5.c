@@ -2089,9 +2089,7 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
             // Advance past the unknown TLV
             (*ppReadPackedMsg) += generic_tl.length ;
             int padding = get_tlv_padding(generic_tl.length);
-            if (padding != 0) {
-              (*ppReadPackedMsg) += padding;
-            }
+            (*ppReadPackedMsg) += padding;
           } else {
             // go to the end
             return 0;
@@ -2108,9 +2106,7 @@ static uint8_t unpack_nr_config_request(uint8_t **ppReadPackedMsg, uint8_t *end,
           // Advance past the unknown TLV
           (*ppReadPackedMsg) += generic_tl.length ;
           int padding = get_tlv_padding(generic_tl.length);
-          if (padding != 0) {
-            (*ppReadPackedMsg) += padding;
-          }
+          (*ppReadPackedMsg) += padding;
         } else {
           // go to the end
           return 0;
