@@ -1378,30 +1378,27 @@ bool nr_ue_pdsch_procedures(void *parms)
 
 void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
                       const UE_nr_rxtx_proc_t *proc,
+                      const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
                       nr_csi_info_t *nr_csi_info,
                       nr_csi_phy_parms_t *csi_phy_parms)
 {
-  const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu = (fapi_nr_dl_config_csirs_pdu_rel15_t*)&ue->csirs_vars[proc->gNB_id]->csirs_config_pdu;
   nr_generate_csi_rs(&ue->frame_parms,
-                     ue->nr_csi_info->csi_rs_generated_signal,
                      AMP,
-                     ue->nr_csi_info,
                      (nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *) csirs_config_pdu,
                      proc->nr_slot_rx,
+                     nr_csi_info,
                      csi_phy_parms);
 }
 
-void nr_ue_csirs_procedures(const PHY_VARS_NR_UE *ue,
-                            const UE_nr_rxtx_proc_t *proc,
-                            const nr_csi_phy_parms_t *csi_phy_parms,
-                            const int symbol,
-                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                            int32_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][ue->frame_parms.samples_per_slot_wCP],
-                            nr_csi_symbol_res_t *csi_symb_res)
+void nr_ue_csi_rs_symbol_procedures(const PHY_VARS_NR_UE *ue,
+                                    const UE_nr_rxtx_proc_t *proc,
+                                    const nr_csi_phy_parms_t *csi_phy_parms,
+                                    const int symbol,
+                                    const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                                    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                                    int32_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
+                                    nr_csi_symbol_res_t *csi_symb_res)
 {
-  int gNB_id = proc->gNB_id;
-
-  const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu = (fapi_nr_dl_config_csirs_pdu_rel15_t*)&ue->csirs_vars[proc->gNB_id]->csirs_config_pdu;
   nr_csi_rs_channel_estimation(ue,
                                proc,
                                csirs_config_pdu,
@@ -1418,181 +1415,7 @@ void nr_ue_csirs_procedures(const PHY_VARS_NR_UE *ue,
                                rxdataF,
                                symbol,
                                csi_rs_ls_estimates,
-                               csi_phy_parms);
-
-  /* do procedures for CSI-IM */
-  if ((ue->csiim_vars[gNB_id]) && (ue->csiim_vars[gNB_id]->active == 1)) {
-    nr_ue_csi_im_procedures(ue, proc, ue->common_vars.rxdataF);
-    ue->csiim_vars[gNB_id]->active = 0;
-  }
-
-  /* do procedures for CSI-RS */
-  if ((ue->csirs_vars[gNB_id]) && (ue->csirs_vars[gNB_id]->active == 1)) {
-    nr_ue_csi_rs_procedures(ue, proc, ue->common_vars.rxdataF);
-    ue->csirs_vars[gNB_id]->active = 0;
-  }
-}
-
-void free_pdsch_slot_proc_buffers(nr_ue_symb_data_t *symb_data)
-{
-  nr_phy_data_t *phy_data = symb_data->phy_data;
-  NR_DL_FRAME_PARMS *fp = &symb_data->UE->frame_parms;
-
-  /* Free memory */
-  const int pdsch_est_layer_size = fp->nb_antennas_rx * phy_data->dlsch[0].Nl;
-  NR_UE_DLSCH_t *dlsch = phy_data->dlsch;
-  const int pdsch_start_symbol = dlsch[0].dlsch_config.start_symbol;
-  const int pdsch_num_symbols = dlsch[0].dlsch_config.number_symbols;
-  for (int symbol = pdsch_start_symbol; symbol < (pdsch_start_symbol+pdsch_num_symbols); symbol++) {
-    for (int i = 0; i < pdsch_est_layer_size; i++) {
-      free((*symb_data->pdsch_dl_ch_estimates)[symbol][i]);
-    }
-    free((*symb_data->pdsch_dl_ch_estimates)[symbol]);
-    for (int i = 0; i < dlsch[0].Nl; i++) {
-      for (int j = 0; j < fp->nb_antennas_rx; j++) {
-        free((*symb_data->dl_ch_mag)[symbol][i][j]);
-        free((*symb_data->dl_ch_magb)[symbol][i][j]);
-        free((*symb_data->dl_ch_magr)[symbol][i][j]);
-        free((*symb_data->rxdataF_comp)[symbol][i][j]);
-      }
-      free((*symb_data->dl_ch_mag)[symbol][i]);
-      free((*symb_data->dl_ch_magb)[symbol][i]);
-      free((*symb_data->dl_ch_magr)[symbol][i]);
-      free((*symb_data->rxdataF_comp)[symbol][i]);
-    }
-    free((*symb_data->dl_ch_mag)[symbol]);
-    free((*symb_data->dl_ch_magb)[symbol]);
-    free((*symb_data->dl_ch_magr)[symbol]);
-    free((*symb_data->rxdataF_comp)[symbol]);
-  }
-
-}
-
-static void push_symbol_thread(nr_ue_symb_data_t *symb_data, bool isDmrsSymbol)
-{
-  nr_phy_data_t *phy_data = symb_data->phy_data;
-  NR_DL_FRAME_PARMS *fp = &symb_data->UE->frame_parms;
-  const int symbol = symb_data->symbol;
-
-  /* Allocate memory */
-  const int pdsch_est_size = ((fp->ofdm_symbol_size + 15) / 16) * 16;
-  const int pdsch_est_layer_size = fp->nb_antennas_rx * phy_data->dlsch[0].Nl;
-  (*symb_data->pdsch_dl_ch_estimates)[symbol] = (c16_t**)malloc16(pdsch_est_layer_size * sizeof(c16_t*));
-  for (int i = 0; i < pdsch_est_layer_size; i++) {
-    (*symb_data->pdsch_dl_ch_estimates)[symbol][i] = (c16_t*)malloc16_clear(pdsch_est_size * sizeof(c16_t));
-  }
-  const uint32_t rx_size_symbol = phy_data->dlsch[0].dlsch_config.number_rbs * NR_NB_SC_PER_RB;
-  (*symb_data->dl_ch_mag)[symbol]    = (int32_t***)malloc16(sizeof(int32_t**) * phy_data->dlsch[0].Nl);
-  (*symb_data->dl_ch_magb)[symbol]   = (int32_t***)malloc16(sizeof(int32_t**) * phy_data->dlsch[0].Nl);
-  (*symb_data->dl_ch_magr)[symbol]   = (int32_t***)malloc16(sizeof(int32_t**) * phy_data->dlsch[0].Nl);
-  (*symb_data->rxdataF_comp)[symbol] = (c16_t***)malloc16(sizeof(c16_t**) * phy_data->dlsch[0].Nl);
-  for (int i = 0; i < phy_data->dlsch[0].Nl; i++) {
-    (*symb_data->dl_ch_mag)[symbol][i]    = (int32_t **)malloc16(sizeof(int32_t*) * fp->nb_antennas_rx);
-    (*symb_data->dl_ch_magb)[symbol][i]   = (int32_t **)malloc16(sizeof(int32_t*) * fp->nb_antennas_rx);
-    (*symb_data->dl_ch_magr)[symbol][i]   = (int32_t **)malloc16(sizeof(int32_t*) * fp->nb_antennas_rx);
-    (*symb_data->rxdataF_comp)[symbol][i] = (c16_t **)malloc16(sizeof(c16_t*) * fp->nb_antennas_rx);
-    for (int j = 0; j < fp->nb_antennas_rx; j++) {
-      (*symb_data->dl_ch_mag)[symbol][i][j]    = (int32_t *)malloc16_clear(sizeof(int32_t) * rx_size_symbol);
-      (*symb_data->dl_ch_magb)[symbol][i][j]   = (int32_t *)malloc16_clear(sizeof(int32_t) * rx_size_symbol);
-      (*symb_data->dl_ch_magr)[symbol][i][j]   = (int32_t *)malloc16_clear(sizeof(int32_t) * rx_size_symbol);
-      (*symb_data->rxdataF_comp)[symbol][i][j] = (c16_t *)malloc16_clear(sizeof(c16_t) * rx_size_symbol);
-    }
-  }
-
-  /* set result FIFO based on symbol type */
-  notifiedFIFO_t *resFifo;
-  if (isDmrsSymbol)
-    resFifo = symb_data->dmrsSymbProcRes;
-  else
-    resFifo = symb_data->symbProcRes;
-  /* Start worker thread */
-  notifiedFIFO_elt_t *newElt = newNotifiedFIFO_elt(sizeof(nr_ue_symb_data_t), symb_data->proc->nr_slot_rx, resFifo, nr_ue_pdsch_procedures_symbol);
-  nr_ue_symb_data_t *symbMsg = (nr_ue_symb_data_t *) NotifiedFifoData(newElt);
-  *symbMsg = *symb_data;
-  reset_meas(&symbMsg->pdsch_pre_proc);
-  pushTpool(&(get_nrUE_params()->Tpool), newElt);
-}
-
-void pdsch_symbol_proc_start(nr_ue_symb_data_t symb_data)
-{
-  nr_phy_data_t *phy_data = symb_data.phy_data;
-  NR_DL_FRAME_PARMS *fp = &symb_data.UE->frame_parms;
-  const int symbol = symb_data.symbol;
-  const int dmrsSymbBitmap = phy_data->dlsch[0].dlsch_config.dlDmrsSymbPos;
-  const int last_dmrs_symbol = get_last_dmrs_symbol_in_slot(dmrsSymbBitmap);
-  DevAssert(last_dmrs_symbol != -1);
-
-  if (symbol < last_dmrs_symbol) {
-    if (get_isPilot_symbol(symbol, &phy_data->dlsch[0])) {
-      LOG_D(PHY, "Starting PDSCH for DMRS symbol %d\n", symbol);
-      push_symbol_thread(&symb_data, true);
-    }
-  } else if (symbol == last_dmrs_symbol) {
-    /* process last DMRS symbol */
-    LOG_D(PHY, "Starting PDSCH for DMRS symbol %d\n", symbol);
-    push_symbol_thread(&symb_data, true);
-    /* get results from processed DMRS symbol */
-    int num_dmrs_symb = get_dmrs_symbols_in_slot(dmrsSymbBitmap, NR_SYMBOLS_PER_SLOT);
-    for (int i = 0; i < num_dmrs_symb; i++) {
-      notifiedFIFO_elt_t *res;
-      res = pullTpool(symb_data.dmrsSymbProcRes, &(get_nrUE_params()->Tpool));
-      if (res == NULL)
-        LOG_E(PHY, "Tpool has been aborted\n");
-      else
-        delNotifiedFIFO_elt(res);
-    }
-    /* averaging channel estimates in time domain */
-    /* channel estimates of all DMRS symbols should be available now */
-    if (symb_data.UE->chest_time == 1) {
-      nr_chest_time_domain_avg(fp,
-                               (*symb_data.pdsch_dl_ch_estimates),
-                               phy_data->dlsch[0].dlsch_config.number_symbols,
-                               phy_data->dlsch[0].dlsch_config.start_symbol,
-                               phy_data->dlsch[0].dlsch_config.dlDmrsSymbPos,
-                               phy_data->dlsch[0].dlsch_config.number_rbs);
-    }
-    /* process skipped data symbols */
-    const int last_dmrs_symbol = get_last_dmrs_symbol_in_slot(dmrsSymbBitmap);
-    int data_symb_idx = last_dmrs_symbol - 1;
-    while (data_symb_idx > 0) {
-      const int dmrsSymbBitmap = phy_data->dlsch[0].dlsch_config.dlDmrsSymbPos;
-      const bool isDataSymbol = !((dmrsSymbBitmap >> data_symb_idx) & 0x1);
-      if (isDataSymbol) {
-        symb_data.symbol = data_symb_idx;
-        LOG_D(PHY, "Starting PDSCH for data symbol %d\n", symbol);
-        push_symbol_thread(&symb_data, false);
-      }
-      data_symb_idx--;
-    }
-  } else {
-    /* process current data symbol */
-    LOG_D(PHY, "Starting PDSCH for data symbol %d\n", symbol);
-    push_symbol_thread(&symb_data, false);
-  }
-}
-
-bool pdsch_symbol_proc_end(nr_ue_symb_data_t symb_data)
-{
-  nr_phy_data_t *phy_data = symb_data.phy_data;
-  const int dmrsSymbBitmap = phy_data->dlsch[0].dlsch_config.dlDmrsSymbPos;
-  const int last_pdsch_symbol = phy_data->dlsch[0].dlsch_config.start_symbol + phy_data->dlsch[0].dlsch_config.number_symbols;
-  const int dataSymbBitmap = ((1 << last_pdsch_symbol) - 1) ^ dmrsSymbBitmap;
-  const int num_data_symbols = get_dmrs_symbols_in_slot(dataSymbBitmap, last_pdsch_symbol-1);
-  LOG_D(PHY, "Finishing PDSCH for symbol %d\n", symb_data.symbol);
-  /* Collect processed info from finished threads */
-  for (int i = 0; i < num_data_symbols; i++) {
-    notifiedFIFO_elt_t *res;
-    res = pullTpool(symb_data.symbProcRes, &(get_nrUE_params()->Tpool));
-    LOG_D(PHY, "Got result from symbol %d\n", ((nr_ue_symb_data_t*)(res->msgData))->symbol);
-    merge_meas(&symb_data.UE->pdsch_pre_proc, &((nr_ue_symb_data_t*)(res->msgData))->pdsch_pre_proc);
-    if (res == NULL)
-      LOG_E(PHY, "Tpool has been aborted\n");
-    else
-      delNotifiedFIFO_elt(res);
-  }
-
-  /* Do remaining processing: PTRS compensation, LLR calculation & DLSCH decoding */
-  return pdsch_post_processing(&symb_data);
+                               csi_symb_res);
 }
 
 void send_slot_ind(notifiedFIFO_t *nf, int slot) {

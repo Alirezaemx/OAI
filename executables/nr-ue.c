@@ -777,98 +777,6 @@ static void launch_tx_process(PHY_VARS_NR_UE *UE, UE_nr_rxtx_proc_t *proc, int s
   pushTpool(&(get_nrUE_params()->Tpool), newElt);
 }
 
-static void process_symbol(nr_ue_symb_data_t symb_data, int sample_shift, openair0_timestamp timestamp, notifiedFIFO_t *txFifo)
-{
-  PHY_VARS_NR_UE *UE = symb_data.UE;
-  UE_nr_rxtx_proc_t *proc = symb_data.proc;
-  nr_phy_data_t *phy_data = symb_data.phy_data;
-  const int symbol = symb_data.symbol;
-  /* OFDM Demodulation */
-  nr_slot_fep(UE,
-              proc,
-              symbol,
-              UE->common_vars.rxdataF[symbol],
-              UE->common_vars.rxdataSymb[symbol]);
-
-  /* PDCCH scheduling */
-  if (symbol == 0) {
-    process_synch_request(UE, proc);
-    pdcch_sched_request(UE, proc, phy_data);
-    *symb_data.pdcch_state = SCHEDULED;
-  }
-
-  /* PBCH processing */
-  if (symbol == 7) {
-    notifiedFIFO_elt_t *newElt = newNotifiedFIFO_elt(sizeof(nr_ue_symb_data_t), proc->nr_slot_rx, NULL, pbch_processing);
-    nr_ue_symb_data_t *symbMsg = (nr_ue_symb_data_t *) NotifiedFifoData(newElt);
-    *symbMsg = symb_data;
-    pushTpool(&(get_nrUE_params()->Tpool), newElt);
-  }
-
-  if (*symb_data.pdcch_state == SCHEDULED) {
-    /* process PDCCH */
-    NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
-    const int nb_symb_pdcch = get_max_pdcch_symb(phy_pdcch_config);
-    const int start_symb_pdcch = get_min_pdcch_start_symb(phy_pdcch_config);
-    const int last_symb_pdcch = start_symb_pdcch + nb_symb_pdcch - 1;
-    if (last_symb_pdcch == symbol) {
-      pdcch_processing(UE, proc, phy_data); /* start after receiving the last PDCCH symbol */
-      *symb_data.pdcch_state = DONE;
-      *symb_data.pusch_state = SCHEDULED;
-      if (phy_data->dlsch[0].active)
-        *symb_data.pdsch_state = SCHEDULED;
-      else
-        *symb_data.pdsch_state = DONE;
-    }
-  }
-
-  if (*symb_data.pusch_state == SCHEDULED) {
-    /* process TX signals */
-    launch_tx_process(UE, proc, sample_shift, timestamp, txFifo);
-    *symb_data.pusch_state = PROCESSING;
-  }
-
-  if (*symb_data.pdsch_state == SCHEDULED) {
-    /* process PDSCH */
-    const int first_pdsch_symbol = phy_data->dlsch[0].dlsch_config.start_symbol;
-    const int last_pdsch_symbol = phy_data->dlsch[0].dlsch_config.start_symbol +
-                                  phy_data->dlsch[0].dlsch_config.number_symbols - 1;
-    if ((symbol < last_pdsch_symbol) &&
-        (symbol >= first_pdsch_symbol)) {
-      pdsch_symbol_proc_start(symb_data);
-    } else if (symbol == last_pdsch_symbol) {
-      pdsch_symbol_proc_start(symb_data);
-      pdsch_symbol_proc_end(symb_data);
-      free_pdsch_slot_proc_buffers(&symb_data);
-      *symb_data.pdsch_state = DONE;
-    }
-  }
-
-  /* PRS, TA and CSI processing */
-  if (symbol == NR_SYMBOLS_PER_SLOT-1) {
-    prs_processing(UE, proc, UE->common_vars.rxdataF);
-    ue_ta_procedures(UE, proc->nr_slot_tx, proc->frame_tx);
-    nr_ue_csirs_procedures(UE, proc);
-
-    /* print PDSCH stats */
-    if ((proc->frame_rx%64 == 0) && (proc->nr_slot_rx==0)) {
-      LOG_I(NR_PHY,"============================================\n");
-      // fixed text + 8 HARQs rounds à 10 ("999999999/") + NULL
-      // if we use 999999999 HARQs, that should be sufficient for at least 138 hours
-      const size_t harq_output_len = 31 + 10 * 8 + 1;
-      char output[harq_output_len];
-      char *p = output;
-      const char *end = output + harq_output_len;
-      p += snprintf(p, end - p, "Harq round stats for Downlink: %d", UE->dl_stats[0]);
-      for (int round = 1; round < 16 && (round < 3 || UE->dl_stats[round] != 0); ++round)
-        p += snprintf(p, end - p,"/%d", UE->dl_stats[round]);
-      LOG_I(NR_PHY,"%s\n", output);
-
-      LOG_I(NR_PHY,"============================================\n");
-    }
-  }
-}
-
 openair0_timestamp read_symbol(const int absSymbol,
                                const NR_DL_FRAME_PARMS *fp,
                                const openair0_device *rfDevice,
@@ -923,6 +831,8 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
   /* Data required for the duration of slot */
   NR_UE_PHY_CHANNEL_STATE_t pdcch_state = DONE;
   NR_UE_PHY_CHANNEL_STATE_t pdsch_state = DONE;
+  NR_UE_PHY_CHANNEL_STATE_t csirs_state = DONE;
+  NR_UE_PHY_CHANNEL_STATE_t csiim_state = DONE;
   nr_phy_data_t phy_data = {0};
   int ssbIndex = -1;
   int pbchSymbCnt = 0;
@@ -939,6 +849,10 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
   c16_t *dl_ch_magr = NULL;
   c16_t *ptrs_phase = NULL;
   int32_t *ptrs_re = NULL;
+  int32_t *csi_rs_ls_estimates = NULL;
+  nr_csi_phy_parms_t csi_phy_parms;
+  nr_csi_symbol_res_t csi_rs_res;
+  nr_csi_symbol_res_t csi_im_res;
   while (symbol < NR_SYMBOLS_PER_SLOT) {
     const int absSymbol = fp->slots_per_frame * NR_SYMBOLS_PER_SLOT + symbol;
     const int sampleShift = (absSymbol == NR_SYMBOLS_PER_SLOT * fp->slots_per_frame - 1) ?
@@ -980,8 +894,8 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
       pdcch_state = SCHEDULED;
     }
 
+    /* process PDCCH */
     if (pdcch_state == SCHEDULED) {
-      /* process PDCCH */
       const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data.phy_pdcch_config;
       const int nb_symb_pdcch = get_max_pdcch_symb(phy_pdcch_config);
       const int start_symb_pdcch = get_min_pdcch_start_symb(phy_pdcch_config);
@@ -993,12 +907,53 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
         nr_pdcch_dci_indication(proc, pdcchLlrSize, UE, &phy_data, pdcchLlr);
         pdcch_state = DONE;
         pdsch_state = (phy_data.dlsch[0].active) ? SCHEDULED : DONE;
+        csirs_state = (phy_data.csirs_vars.active) ? SCHEDULED : DONE;
+        csiim_state = (phy_data.csiim_vars.active) ? SCHEDULED : DONE;
         free(pdcchLlr); pdcchLlr = NULL;
       }
     }
 
+    /* CSI-IM */
+    if (csiim_state == SCHEDULED) {
+      memset(&csi_im_res, 0, sizeof(csi_im_res));
+      csiim_state = PROCESSING;
+    }
+    if (csiim_state == PROCESSING) {
+      nr_csi_im_symbol_power_estimation(UE, proc, &phy_data.csiim_vars.csiim_config_pdu, symbol, rxdataF, &csi_im_res);
+    }
+    if ((csiim_state == PROCESSING) &&
+        (symbol == NR_SYMBOLS_PER_SLOT-1)) {
+      nr_ue_csi_im_procedures(&phy_data.csiim_vars.csiim_config_pdu, &csi_im_res, &csi_phy_parms);
+      csiim_state = DONE;
+    }
+    /* CSI-RS */
+    if (csirs_state == SCHEDULED) {
+      memset(&csi_rs_res, 0, sizeof(csi_rs_res));
+      nr_csi_slot_init(UE, proc, &phy_data.csirs_vars.csirs_config_pdu, &UE->nr_csi_info, &csi_phy_parms);
+      const int estSize = UE->frame_parms.nb_antennas_rx * csi_phy_parms.N_ports * UE->frame_parms.ofdm_symbol_size;
+      if (!csi_rs_ls_estimates) csi_rs_ls_estimates = malloc16_clear(sizeof(*csi_rs_ls_estimates) * estSize);
+      csirs_state = PROCESSING;
+    }
+    if (csirs_state == PROCESSING) {
+      nr_ue_csi_rs_symbol_procedures(UE,
+                                     proc,
+                                     &csi_phy_parms,
+                                     symbol,
+                                     &phy_data.csirs_vars.csirs_config_pdu,
+                                     rxdataF,
+                                     csi_rs_ls_estimates,
+                                     &csi_rs_res);
+    }
+    if ((symbol == NR_SYMBOLS_PER_SLOT-1) &&
+         csirs_state == PROCESSING) {
+      /* RI, PMI and CQI estimation */
+      nr_ue_csi_rs_procedures(UE, proc, &phy_data.csirs_vars.csirs_config_pdu, &csi_phy_parms, &csi_rs_res, csi_rs_ls_estimates);
+      free(csi_rs_ls_estimates); csi_rs_ls_estimates = NULL;
+      csirs_state = DONE;
+    }
+
+    /* process PDSCH */
     if (pdsch_state == SCHEDULED) {
-      /* process PDSCH */
       const int first_pdsch_symbol = phy_data.dlsch[0].dlsch_config.start_symbol;
       const int last_pdsch_symbol = phy_data.dlsch[0].dlsch_config.start_symbol +
                                     phy_data.dlsch[0].dlsch_config.number_symbols - 1;
@@ -1042,113 +997,26 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
       }
     }
 
+    if (symbol == NR_SYMBOLS_PER_SLOT-1) {
+      //prs_processing(UE, proc, UE->common_vars.rxdataF);
+      ue_ta_procedures(UE, proc->nr_slot_tx, proc->frame_tx);
 
-
-  }
-}
-
-static void slot_process(PHY_VARS_NR_UE *UE,
-                         const UE_nr_rxtx_proc_t *proc)
-{
-  const unsigned int slot = proc->nr_slot_rx;
-  
-  const NR_DL_FRAME_PARMS *fp = &UE->frame_parms;
-
-  /* Data required for the duration of slot */
-  nr_phy_data_t phy_data = {0};
-
-  c16_t **pdsch_dl_ch_estimates[NR_SYMBOLS_PER_SLOT];
-
-  c16_t ptrs_phase_per_slot[fp->nb_antennas_rx][NR_SYMBOLS_PER_SLOT];
-  memset(ptrs_phase_per_slot, 0, sizeof(ptrs_phase_per_slot));
-
-  int32_t ptrs_re_per_slot[fp->nb_antennas_rx][NR_SYMBOLS_PER_SLOT];
-  memset(ptrs_re_per_slot, 0, sizeof(ptrs_re_per_slot));
-
-  c16_t ***rxdataF_comp[NR_SYMBOLS_PER_SLOT];
-
-  int32_t ***dl_ch_mag[NR_SYMBOLS_PER_SLOT];
-
-  int32_t ***dl_ch_magb[NR_SYMBOLS_PER_SLOT];
-
-  int32_t ***dl_ch_magr[NR_SYMBOLS_PER_SLOT];
-
-  notifiedFIFO_t resFifo;
-  initNotifiedFIFO(&resFifo);
-
-  notifiedFIFO_t dmrsResFifo;
-  initNotifiedFIFO(&dmrsResFifo);
-
-  NR_UE_PHY_CHANNEL_STATE_t pdsch_state = DONE;
-  NR_UE_PHY_CHANNEL_STATE_t pdcch_state = DONE;
-  NR_UE_PHY_CHANNEL_STATE_t pusch_state = DONE;
-
-  unsigned int abs_symbol = 0;
-  unsigned int symbol = 0;
-  int sample_shift = 0;
-  void *rxp[fp->nb_antennas_rx];
-  openair0_timestamp timestamp;
-  while (symbol < NR_SYMBOLS_PER_SLOT) {
-    /* Read only the required samples so memcpy can be avoided later in nr_slot_fep() */
-    unsigned int prefix_samples = 0;
-    abs_symbol = slot * UE->frame_parms.symbols_per_slot + symbol;
-    prefix_samples = (abs_symbol%(0x7<<fp->numerology_index)) ?
-                     fp->nb_prefix_samples : fp->nb_prefix_samples0;
-    /* trash the 7/8 CP samples */
-    const unsigned int trash_samples = prefix_samples - (prefix_samples / fp->ofdm_offset_divisor);
-    for (int i = 0; i < fp->nb_antennas_rx; i++)
-      rxp[i] = (void *)&UE->common_vars.rxdata[i][0]; /* store the unused 7/8 CP samples */
-
-    openair0_timestamp trashTimeStamp;
-    openair0_timestamp *p_getTimeStamp;
-    if (symbol == 0)
-      p_getTimeStamp = &timestamp;
-    else
-      p_getTimeStamp = &trashTimeStamp;
-    AssertFatal(trash_samples ==
-                UE->rfdevice.trx_read_func(&UE->rfdevice,
-                                           p_getTimeStamp,
-                                           rxp,
-                                           trash_samples,
-                                           fp->nb_antennas_rx),"");
-
-    /* get OFDM symbol including 1/8th of the CP to avoid ISI */
-    unsigned int readBlockSize;
-    if ((slot == fp->slots_per_frame - 1) &&
-        (symbol == NR_SYMBOLS_PER_SLOT -1)) {
-      sample_shift = computeSamplesShift(UE);
-      readBlockSize = prefix_samples - trash_samples + fp->ofdm_symbol_size - sample_shift;
-    } else
-      readBlockSize = prefix_samples - trash_samples + fp->ofdm_symbol_size;
-    for (int i = 0; i < fp->nb_antennas_rx; i++)
-      rxp[i] = (void *)&UE->common_vars.rxdataSymb[symbol][i][0];
-    AssertFatal(readBlockSize ==
-                UE->rfdevice.trx_read_func(&UE->rfdevice,
-                                           &trashTimeStamp,
-                                           rxp,
-                                           readBlockSize,
-                                           fp->nb_antennas_rx),"");
-
-    nr_ue_symb_data_t symb_data = {.UE = UE,
-                                   .proc = proc,
-                                   .symbol = symbol,
-                                   .phy_data = &phy_data,
-                                   .ptrs_phase_per_slot = &ptrs_phase_per_slot,
-                                   .ptrs_re_per_slot = &ptrs_re_per_slot,
-                                   .pdsch_dl_ch_estimates = &pdsch_dl_ch_estimates,
-                                   .rxdataF_comp = &rxdataF_comp,
-                                   .dl_ch_mag = &dl_ch_mag,
-                                   .dl_ch_magb = &dl_ch_magb,
-                                   .dl_ch_magr = &dl_ch_magr,
-                                   .symbProcRes = &resFifo,
-                                   .dmrsSymbProcRes = &dmrsResFifo,
-                                   .pdsch_state = &pdsch_state,
-                                   .pdcch_state = &pdcch_state,
-                                   .pusch_state = &pusch_state};
-    /* process the symbol */
-    process_symbol(symb_data, sample_shift, timestamp, thMsg->txFifo);
-    symbol++;
-  }
+      /* print PDSCH stats */
+      if ((proc->frame_rx%64 == 0) && (proc->nr_slot_rx==0)) {
+        LOG_I(NR_PHY,"============================================\n");
+        // fixed text + 8 HARQs rounds à 10 ("999999999/") + NULL
+        // if we use 999999999 HARQs, that should be sufficient for at least 138 hours
+        const size_t harq_output_len = 31 + 10 * 8 + 1;
+        char output[harq_output_len];
+        char *p = output;
+        const char *end = output + harq_output_len;
+        p += snprintf(p, end - p, "Harq round stats for Downlink: %d", UE->dl_stats[0]);
+        for (int round = 1; round < 16 && (round < 3 || UE->dl_stats[round] != 0); ++round)
+          p += snprintf(p, end - p,"/%d", UE->dl_stats[round]);
+        LOG_I(NR_PHY,"%s\n", output);
+        LOG_I(NR_PHY,"============================================\n");
+      }
+    }
 }
 
 void *UE_thread(void *arg) {

@@ -428,8 +428,6 @@ typedef struct {
   nr_synch_request_t synch_request;
 
   NR_UE_PRACH     *prach_vars[NUMBER_OF_CONNECTED_gNB_MAX];
-  NR_UE_CSI_IM    *csiim_vars[NUMBER_OF_CONNECTED_gNB_MAX];
-  NR_UE_CSI_RS    *csirs_vars[NUMBER_OF_CONNECTED_gNB_MAX];
   NR_UE_SRS       *srs_vars[NUMBER_OF_CONNECTED_gNB_MAX];
   NR_UE_PRS       *prs_vars[NR_MAX_PRS_COMB_SIZE];
   uint8_t          prs_active_gNBs;
@@ -660,6 +658,8 @@ typedef struct nr_phy_data_tx_s {
 typedef struct nr_phy_data_s {
   NR_UE_PDCCH_CONFIG phy_pdcch_config;
   NR_UE_DLSCH_t dlsch[2];
+  NR_UE_CSI_RS csirs_vars;
+  NR_UE_CSI_IM csiim_vars;
 } nr_phy_data_t;
 
 /* this structure is used to pass both UE phy vars and
@@ -701,8 +701,14 @@ typedef struct nr_ue_symb_data_s {
 
 typedef struct nr_csi_symbol_res_s {
   int rsrpSum1;
-  int rsrpSum2;
+  int rsrp;
   int rsrpDbm;
+  int sum_re1;
+  int sum_im1;
+  int sum_re2;
+  int sum_im2;
+  int power_re;
+  int power_im;
   int count;
 } nr_csi_symbol_res_t;
 

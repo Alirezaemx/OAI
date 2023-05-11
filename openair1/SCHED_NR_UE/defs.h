@@ -143,6 +143,11 @@ int get_tx_harq_id(NR_UE_ULSCH_t *ulsch, int slot_tx);
 int is_pbch_in_slot(fapi_nr_config_request_t *config, int frame, int slot, NR_DL_FRAME_PARMS *fp);
 int is_ssb_in_slot(fapi_nr_config_request_t *config, int frame, int slot, NR_DL_FRAME_PARMS *fp);
 bool is_csi_rs_in_symbol(fapi_nr_dl_config_csirs_pdu_rel15_t csirs_config_pdu, int symbol);
+void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
+                      const UE_nr_rxtx_proc_t *proc,
+                      const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                      nr_csi_info_t *nr_csi_info,
+                      nr_csi_phy_parms_t *csi_phy_parms);
 
 /*! \brief This function prepares the dl indication to pass to the MAC
     @param
@@ -182,9 +187,21 @@ bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
 
 bool nr_ue_pdsch_procedures(void *parms);
 
-int nr_ue_csi_im_procedures(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, c16_t ***rxdataF);
+void nr_ue_csi_rs_symbol_procedures(const PHY_VARS_NR_UE *ue,
+                                    const UE_nr_rxtx_proc_t *proc,
+                                    const nr_csi_phy_parms_t *csi_phy_parms,
+                                    const int symbol,
+                                    const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                                    const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                                    int32_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
+                                    nr_csi_symbol_res_t *csi_symb_res);
 
-int nr_ue_csi_rs_procedures(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, c16_t ***rxdataF);
+int nr_ue_csi_rs_procedures(const PHY_VARS_NR_UE *ue,
+                            const UE_nr_rxtx_proc_t *proc,
+                            const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                            const nr_csi_phy_parms_t *csi_phy_parms,
+                            nr_csi_symbol_res_t *res,
+                            int32_t csi_rs_ls_estimated_channel[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size]);
 
 int nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                  const UE_nr_rxtx_proc_t *proc,
@@ -204,7 +221,16 @@ int nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                  int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
                                  nr_csi_symbol_res_t *res);
 
-void nr_ue_csirs_procedures(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc);
+void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,
+                                       const UE_nr_rxtx_proc_t *proc,
+                                       const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
+                                       const int symbol,
+                                       const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                                       nr_csi_symbol_res_t *csi_im_res);
+
+void nr_ue_csi_im_procedures(const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_config_pdu,
+                             const nr_csi_symbol_res_t *res,
+                             nr_csi_phy_parms_t *csi_phy_parms);
 
 bool pdsch_post_processing(nr_ue_symb_data_t *symbMsg);
 

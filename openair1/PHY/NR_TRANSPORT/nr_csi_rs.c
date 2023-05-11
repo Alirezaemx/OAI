@@ -44,11 +44,10 @@ void nr_init_csi_rs(const NR_DL_FRAME_PARMS *fp, uint32_t ***csi_rs, uint32_t Ni
 }
 
 void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
-                        int32_t **dataF,
                         const int16_t amp,
-                        nr_csi_info_t *nr_csi_info,
                         const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params,
                         const int slot,
+                        nr_csi_info_t *nr_csi_info,
                         nr_csi_phy_parms_t *csi_phy_parms)
 {
 #ifdef NR_CSIRS_DEBUG
@@ -69,6 +68,7 @@ void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
 #endif
 
   int dataF_offset = slot*frame_parms->samples_per_slot_wCP;
+  int32_t **dataF = nr_csi_info->csi_rs_generated_signal;
   uint32_t **nr_gold_csi_rs = nr_csi_info->nr_gold_csi_rs[slot];
   //*8(max allocation per RB)*2(QPSK))
   int csi_rs_length =  frame_parms->N_RB_DL<<4;
