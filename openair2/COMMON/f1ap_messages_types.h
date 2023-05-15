@@ -330,6 +330,28 @@ typedef struct f1ap_up_tnl_s {
   uint16_t port;
 } f1ap_up_tnl_t;
 
+typedef struct f1ap_drb_qos_s {
+  enum { F1AP_DRB_QOS_NON_DYNAMIC_5QI, F1AP_DRB_QOS_DYNAMIC_5QI } qos_characteristics;
+  union {
+    struct { uint8_t fqi; } non_dynamic;
+    struct {
+      uint8_t qos_priority_level;
+      uint16_t packet_delay_budget;
+      struct { uint8_t scalar; uint8_t exponent; } packet_error_rate;
+    } dynamic;
+    struct {
+      int priority_level;
+      bool preemption_capability;
+      bool preemption_vulnerability;
+    } allocation_and_retention_priority;
+  };
+} f1ap_drb_qos_t;
+
+typedef struct f1ap_drb_nssai_s {
+  uint8_t sst[1];
+  uint8_t *sd;    // 3 bytes
+} f1ap_drb_nssai_t;
+
 typedef struct f1ap_drb_to_be_setup_s {
   long           drb_id;
   f1ap_up_tnl_t  up_ul_tnl[2];
@@ -337,6 +359,8 @@ typedef struct f1ap_drb_to_be_setup_s {
   f1ap_up_tnl_t  up_dl_tnl[2];
   uint8_t        up_dl_tnl_length;
   rlc_mode_t     rlc_mode;
+  f1ap_drb_qos_t qos_info;
+  f1ap_drb_nssai_t nssai;
 } f1ap_drb_to_be_setup_t;
 
 typedef struct f1ap_srb_to_be_setup_s {

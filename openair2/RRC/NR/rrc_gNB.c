@@ -2648,6 +2648,9 @@ void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_contex
     drbs[i].up_ul_tnl[0].port = rrc->eth_params_s.my_portd;
     drbs[i].up_ul_tnl[0].teid = e1ap_resp->pduSession[0].DRBnGRanList[i].UpParamList[0].teId;
     drbs[i].up_ul_tnl_length = 1;
+    // add information on QoS
+    drbs[i].qos_info.qos_characteristics = F1AP_DRB_QOS_NON_DYNAMIC_5QI;
+    drbs[i].qos_info.non_dynamic.fqi = 9; // how to get dynamic?
   }
 
   /* Instruction towards the DU for SRB2 configuration */
