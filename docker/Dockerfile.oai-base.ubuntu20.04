@@ -1,0 +1,73 @@
+# docker build --tag oai-base:latest --file ./docker/Dockerfile.oai-base.ubuntu20.04 .
+# oai-base
+FROM ubuntu:focal
+
+ENV TZ=Asia/Calcutta
+ENV DEBIAN_FRONTEND=noninteractive
+
+#install developers pkg/repo
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade --yes && \
+    DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+       #gcc needed for build_oai
+       build-essential \
+       psmisc \
+       git \
+       xxd \
+       # python3-pip for conf template generation
+       python3-pip && \
+    pip3 install --ignore-installed pyyaml
+
+RUN git clone https://gitlab.eurecom.fr/oai/openairinterface5g.git \
+  && cd /openairinterface5g \
+  && . ./oaienv \
+  && cd cmake_targets \
+  && mkdir -p log \
+  && ./build_oai -I --phy_simulators \
+  && ./build_oai -I -w USRP --install-optional-packages
+
+# Now for runtime
+# gNB
+RUN cd /openairinterface5g \
+  && python3 /openairinterface5g/docker/scripts/generateTemplate.py /openairinterface5g/docker/scripts/gnb_parameters.yaml
+
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get upgrade --yes && \
+  DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+    software-properties-common \
+    procps \
+    libsctp1 \
+    tzdata \
+    libblas3 \
+    libatlas3-base \
+    libconfig9 \
+    openssl \
+    net-tools \
+    iperf \
+    iproute2 \
+    iputils-ping \
+    gdb \
+    python \
+    python3 \
+    python3-six \
+    python3-requests \
+    libusb-1.0-0 && \
+  rm -rf /var/lib/apt/lists/*
+
+# UE
+RUN cd /openairinterface5g \
+  && python3 /openairinterface5g/docker/scripts/generateTemplate.py /openairinterface5g/docker/scripts/nr_ue_parameters.yaml
+
+RUN apt-get update && \
+  DEBIAN_FRONTEND=noninteractive apt-get upgrade --yes && \
+  DEBIAN_FRONTEND=noninteractive apt-get install --yes \
+    liblapacke \
+  && rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update \
+  && apt-get install -y nano tcpdump
+
+RUN cd / \
+  && rm -rf openairinterface5g
+
+ENTRYPOINT ["/bin/bash"]
