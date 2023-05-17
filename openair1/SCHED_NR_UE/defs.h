@@ -113,7 +113,7 @@ int nr_process_pbch_symbol(PHY_VARS_NR_UE *ue,
 int nr_pbch_decode(PHY_VARS_NR_UE *ue,
                    UE_nr_rxtx_proc_t *proc,
                    const int i_ssb,
-                   const int16_t pbch_e_rx[NR_POLAR_PBCH_E],
+                   int16_t pbch_e_rx[NR_POLAR_PBCH_E],
                    fapiPbch_t *result,
                    nr_phy_data_t *phy_data);
 
@@ -156,11 +156,11 @@ void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
     @param
  */
 void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
-                           const fapi_nr_dci_indication_t *dci_ind,
-                           const fapi_nr_rx_indication_t *rx_ind,
+                           fapi_nr_dci_indication_t *dci_ind,
+                           fapi_nr_rx_indication_t *rx_ind,
                            const UE_nr_rxtx_proc_t *proc,
                            const PHY_VARS_NR_UE *ue,
-                           const void *phy_data);
+                           void *phy_data);
 
 /*@}*/
 
@@ -178,14 +178,21 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
                            const uint16_t n_pdus,
                            const UE_nr_rxtx_proc_t *proc,
                            const void *typeSpecific,
-                           const uint8_t *b);
+                           uint8_t *b);
 
 bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
-                            UE_nr_rxtx_proc_t *proc,
-                            NR_UE_DLSCH_t dlsch[2],
-                            int16_t* llr[2]);
+                            const UE_nr_rxtx_proc_t *proc,
+                            const NR_UE_DLSCH_t dlsch[2],
+                            const int llrSize,
+                            int16_t llr[NR_MAX_NB_LAYERS > 4 ? 2 : 1][llrSize]);
 
 bool nr_ue_pdsch_procedures(void *parms);
+
+void nr_pdcch_slot_init(const nr_phy_data_t *phyData,
+                        PHY_VARS_NR_UE *ue);
+
+void nr_pdsch_slot_init(const nr_phy_data_t *phyData,
+                        PHY_VARS_NR_UE *ue);
 
 void nr_ue_csi_rs_symbol_procedures(const PHY_VARS_NR_UE *ue,
                                     const UE_nr_rxtx_proc_t *proc,
@@ -203,23 +210,23 @@ int nr_ue_csi_rs_procedures(const PHY_VARS_NR_UE *ue,
                             nr_csi_symbol_res_t *res,
                             int32_t csi_rs_ls_estimated_channel[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size]);
 
-int nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
-                                 const UE_nr_rxtx_proc_t *proc,
-                                 const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
-                                 const nr_csi_info_t *nr_csi_info,
-                                 const int32_t **csi_rs_generated_signal,
-                                 const uint8_t N_cdm_groups,
-                                 const uint8_t CDM_group_size,
-                                 const uint8_t k_prime,
-                                 const uint8_t l_prime,
-                                 const uint8_t N_ports,
-                                 const uint8_t j_cdm[16],
-                                 const uint8_t k_overline[16],
-                                 const uint8_t l_overline[16],
-                                 const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
-                                 const int symbol,
-                                 int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
-                                 nr_csi_symbol_res_t *res);
+void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
+                                  const UE_nr_rxtx_proc_t *proc,
+                                  const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                                  const nr_csi_info_t *nr_csi_info,
+                                  const int32_t **csi_rs_generated_signal,
+                                  const uint8_t N_cdm_groups,
+                                  const uint8_t CDM_group_size,
+                                  const uint8_t k_prime,
+                                  const uint8_t l_prime,
+                                  const uint8_t N_ports,
+                                  const uint8_t j_cdm[16],
+                                  const uint8_t k_overline[16],
+                                  const uint8_t l_overline[16],
+                                  const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
+                                  const int symbol,
+                                  int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
+                                  nr_csi_symbol_res_t *res);
 
 void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,
                                        const UE_nr_rxtx_proc_t *proc,
@@ -232,21 +239,19 @@ void nr_ue_csi_im_procedures(const fapi_nr_dl_config_csiim_pdu_rel15_t *csiim_co
                              const nr_csi_symbol_res_t *res,
                              nr_csi_phy_parms_t *csi_phy_parms);
 
-bool pdsch_post_processing(nr_ue_symb_data_t *symbMsg);
-
 void nr_pdcch_generate_llr(const PHY_VARS_NR_UE *ue,
                            const UE_nr_rxtx_proc_t *proc,
                            const int symbol,
                            const nr_phy_data_t *phy_data,
                            const int llrSize,
                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                           int16_t llr[phy_data->phy_pdcch_config.nb_search_space][llrSize]);
+                           int16_t llr[phy_data->phy_pdcch_config.nb_search_space * llrSize]);
 
 int nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
                             const int llrSize,
                             PHY_VARS_NR_UE *ue,
                             nr_phy_data_t *phy_data,
-                            const int16_t llr[phy_data->phy_pdcch_config.nb_search_space][llrSize]);
+                            const int16_t llr[phy_data->phy_pdcch_config.nb_search_space * llrSize]);
 
 void pdcch_processing(PHY_VARS_NR_UE *ue,
                       UE_nr_rxtx_proc_t *proc,

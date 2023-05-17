@@ -685,11 +685,9 @@ typedef struct nr_ue_symb_data_s {
   c16_t *rxdataF_comp;
   c16_t *pdsch_dl_ch_estimates;
   c16_t *pdsch_dl_ch_est_ext;
-  int32_t *dl_ch_mag;
-  int32_t *dl_ch_magb;
-  int32_t *dl_ch_magr;
-  notifiedFIFO_t *symbProcRes;
-  notifiedFIFO_t *dmrsSymbProcRes;
+  c16_t *dl_ch_mag;
+  c16_t *dl_ch_magb;
+  c16_t *dl_ch_magr;
   int llrSize;
   int16_t *layer_llr;
   time_stats_t pdsch_pre_proc;

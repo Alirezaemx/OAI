@@ -351,8 +351,9 @@ uint8_t get_nr_prach_duration(uint8_t prach_format);
 
 void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
                         const int16_t amp,
-                        const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params,
                         const int slot,
+                        const nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params,
+                        c16_t **dataF,
                         nr_csi_info_t *nr_csi_info,
                         nr_csi_phy_parms_t *csi_phy_parms);
 

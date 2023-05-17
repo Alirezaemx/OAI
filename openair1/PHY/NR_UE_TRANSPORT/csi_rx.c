@@ -196,23 +196,23 @@ uint32_t calc_power_csirs(const uint16_t *x, const fapi_nr_dl_config_csirs_pdu_r
   return sum_x2 / size - (sum_x / size) * (sum_x / size);
 }
 
-int nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
-                                 const UE_nr_rxtx_proc_t *proc,
-                                 const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
-                                 const nr_csi_info_t *nr_csi_info,
-                                 const int32_t **csi_rs_generated_signal,
-                                 const uint8_t N_cdm_groups,
-                                 const uint8_t CDM_group_size,
-                                 const uint8_t k_prime,
-                                 const uint8_t l_prime,
-                                 const uint8_t N_ports,
-                                 const uint8_t j_cdm[16],
-                                 const uint8_t k_overline[16],
-                                 const uint8_t l_overline[16],
-                                 const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
-                                 const int symbol,
-                                 int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
-                                 nr_csi_symbol_res_t *res)
+void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
+                                  const UE_nr_rxtx_proc_t *proc,
+                                  const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
+                                  const nr_csi_info_t *nr_csi_info,
+                                  const int32_t **csi_rs_generated_signal,
+                                  const uint8_t N_cdm_groups,
+                                  const uint8_t CDM_group_size,
+                                  const uint8_t k_prime,
+                                  const uint8_t l_prime,
+                                  const uint8_t N_ports,
+                                  const uint8_t j_cdm[16],
+                                  const uint8_t k_overline[16],
+                                  const uint8_t l_overline[16],
+                                  const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
+                                  const int symbol,
+                                  int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
+                                  nr_csi_symbol_res_t *res)
 {
   const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
   const int dataF_offset = proc->nr_slot_rx*ue->frame_parms.samples_per_slot_wCP;
@@ -307,12 +307,9 @@ int nr_csi_rs_channel_interpolation(const PHY_VARS_NR_UE *ue,
                                     uint32_t *noise_power)
 {
   const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
-  const int dataF_offset = proc->nr_slot_rx*ue->frame_parms.samples_per_slot_wCP;
   *noise_power = 0;
   int maxh = 0;
   int count = 0;
-  uint16_t meas_count = 0;
-  uint32_t rsrp_sum = 0;
 
   for (int ant_rx = 0; ant_rx < frame_parms->nb_antennas_rx; ant_rx++) {
 
@@ -687,7 +684,7 @@ void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,
     if (symbol != csiim_config_pdu->l_csiim[symb_idx]) continue;
     for (int ant_rx = 0; ant_rx < frame_parms->nb_antennas_rx; ant_rx++) {
 
-      c16_t *rx_signal = rxdataF[ant_rx];
+      const c16_t *rx_signal = rxdataF[ant_rx];
 
       for (int rb = csiim_config_pdu->start_rb; rb < end_rb; rb++) {
 
@@ -814,7 +811,7 @@ int nr_ue_csi_rs_procedures(const PHY_VARS_NR_UE *ue,
                            csi_phy_parms->N_ports,
                            mem_offset,
                            csi_rs_estimated_channel_freq,
-                           csi_phy_parm->csi_im_meas_computed ? csi_phy_par->interference_plus_noise_power : noise_power,
+                           csi_phy_parms->csi_im_meas_computed ? csi_phy_parms->interference_plus_noise_power : noise_power,
                            rank_indicator,
                            log2_re,
                            i1,

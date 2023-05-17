@@ -134,7 +134,7 @@ int get_llr_length_pdcch(const NR_UE_PDCCH_CONFIG *phy_pdcch_config)
   int rb_offset;
   for (int i = 0; i < phy_pdcch_config->nb_search_space; i++) {
     int tmp = 0;
-    get_coreset_rballoc(phy_pdcch_config->pdcch_config[i].coreset.frequency_domain_resource, tmp, rb_offset);
+    get_coreset_rballoc(phy_pdcch_config->pdcch_config[i].coreset.frequency_domain_resource, &tmp, &rb_offset);
     if (tmp > nb_rb) nb_rb = tmp;
   }
   return nb_rb;
@@ -1434,8 +1434,8 @@ int get_nr_channel_level_median(const int avg,
 
 #if defined(__x86_64__)||defined(__i386__)
 
-  const int max = avg;//initialize the med point for max
-  const int min = avg;//initialize the med point for min
+  int max = avg;//initialize the med point for max
+  int min = avg;//initialize the med point for min
   const int length2 = length>>2;//length = number of REs, hence length2=nb_REs*(32/128) in SIMD loop
 
   __m128i *dl_ch128=(__m128i *)dl_ch_estimates_ext;
@@ -1625,9 +1625,9 @@ void nr_dlsch_detection_mrc(const int n_tx,
                             const int length,
                             c16_t rxdataF_comp[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                             int rho[n_tx][n_tx][nb_rb * NR_NB_SC_PER_RB],
-                            int32_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                            int32_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                            int32_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB])
+                            c16_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
+                            c16_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
+                            c16_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB])
 {
 #if defined(__x86_64__)||defined(__i386__)
   unsigned char aatx, aarx;
@@ -1997,19 +1997,19 @@ uint8_t nr_matrix_inverse(int32_t size,
  *
  *
  * */
-void nr_conjch0_mult_ch1(int *ch0,
-                         int *ch1,
+void nr_conjch0_mult_ch1(const int *ch0,
+                         const int *ch1,
                          int32_t *ch0conj_ch1,
-                         unsigned short nb_rb,
-                         unsigned char output_shift0)
+                         const unsigned short nb_rb,
+                         const unsigned char output_shift0)
 {
   //This function is used to compute multiplications in H_hermitian * H matrix
   short nr_conjugate[8]__attribute__((aligned(16))) = {-1,1,-1,1,-1,1,-1,1};
   unsigned short rb;
-  __m128i *dl_ch0_128,*dl_ch1_128, *ch0conj_ch1_128, mmtmpD0,mmtmpD1,mmtmpD2,mmtmpD3;
+  __m128i *ch0conj_ch1_128, mmtmpD0,mmtmpD1,mmtmpD2,mmtmpD3;
 
-  dl_ch0_128 = (__m128i *)ch0;
-  dl_ch1_128 = (__m128i *)ch1;
+  const __m128i *dl_ch0_128 = (__m128i *)ch0;
+  const __m128i *dl_ch1_128 = (__m128i *)ch1;
 
   ch0conj_ch1_128 = (__m128i *)ch0conj_ch1;
 
@@ -2053,9 +2053,9 @@ void nr_zero_forcing_rx(const int n_tx,
                         const c16_t dl_ch_estimates_ext[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t rxdataF_comp[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         int rho[n_tx][n_tx][nb_rb * NR_NB_SC_PER_RB],
-                        int32_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                        int32_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                        int32_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB])
+                        c16_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
+                        c16_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
+                        c16_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB])
 {
   int *ch0r, *ch0c;
   uint32_t nb_rb_0 = length/12 + ((length%12)?1:0);
@@ -2234,10 +2234,10 @@ void nr_dlsch_layer_demapping(const uint8_t Nl,
 int nr_dlsch_llr(const NR_DL_FRAME_PARMS *frame_parms,
                  const NR_UE_DLSCH_t *dlsch,
                  const int len,
-                 const int32_t dl_ch_mag[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                 const int32_t dl_ch_magb[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                 const int32_t dl_ch_magr[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                 const int32_t rxdataF_comp[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                 const c16_t dl_ch_mag[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                 const c16_t dl_ch_magb[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                 const c16_t dl_ch_magr[dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                 const c16_t rxdataF_comp[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
                  const int llrSize,
                  int16_t layer_llr[dlsch->Nl][llrSize])
 {

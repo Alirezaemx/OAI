@@ -49,7 +49,7 @@ int slot_fep(PHY_VARS_UE *phy_vars_ue,
 	     int reset_freq_est);
 
 void nr_symbol_fep(const PHY_VARS_NR_UE *ue,
-                   const UE_nr_rxtx_proc_t *proc,
+                   const int slot,
                    const unsigned char symbol,
                    const c16_t rxdata[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size + ue->frame_parms.nb_prefix_samples0],
                    c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);

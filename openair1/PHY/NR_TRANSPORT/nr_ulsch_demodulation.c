@@ -1965,17 +1965,19 @@ void nr_rx_pusch(PHY_VARS_gNB *gNB,
 
   nvar /= (rel15_ul->nr_of_symbols * rel15_ul->nrOfLayers * frame_parms->nb_antennas_rx);
 
+  #if 0 // TODO: common function changed as per new UE design. to be redone on gNB.
   if (gNB->chest_time == 1) { // averaging time domain channel estimates
     nr_chest_time_domain_avg(frame_parms,
-                             (c16_t***)pusch_vars->ul_ch_estimates,
                              rel15_ul->nr_of_symbols,
                              rel15_ul->start_symbol_index,
                              rel15_ul->ul_dmrs_symb_pos,
-                             rel15_ul->rb_size);
+                             rel15_ul->rb_size,
+                             (c16_t***)pusch_vars->ul_ch_estimates);
 
     pusch_vars->dmrs_symbol =
         get_next_dmrs_symbol_in_slot(rel15_ul->ul_dmrs_symb_pos, rel15_ul->start_symbol_index, rel15_ul->nr_of_symbols);
   }
+  #endif
   stop_meas(&gNB->ulsch_channel_estimation_stats);
 
   int off = ((rel15_ul->rb_size&1) == 1)? 4:0;

@@ -55,7 +55,7 @@ __m128i rho_rmi __attribute__((aligned(16)));
 //----------------------------------------------------------------------------------------------
 
 int nr_dlsch_qpsk_llr(const NR_DL_FRAME_PARMS *frame_parms,
-                      const int32_t *rxdataF_comp,
+                      const c16_t *rxdataF_comp,
                       int16_t *dlsch_llr,
                       const uint32_t len,
                       const uint16_t nb_rb)
@@ -94,16 +94,15 @@ int nr_dlsch_qpsk_llr(const NR_DL_FRAME_PARMS *frame_parms,
 //----------------------------------------------------------------------------------------------
 
 void nr_dlsch_16qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
-                        const int32_t *rxdataF_comp,
-                        const int16_t *dlsch_llr,
-                        int32_t *dl_ch_mag,
+                        const c16_t *rxdataF_comp,
+                        int16_t *dlsch_llr,
+                        const c16_t *dl_ch_mag,
                         const uint32_t len,
                         const uint16_t nb_rb)
 {
 
 #if defined(__x86_64__) || defined(__i386__)
   __m128i *rxF = (__m128i*)rxdataF_comp;
-  __m128i *ch_mag;
   __m128i llr128[2];
   uint32_t *llr32;
 #elif defined(__arm__) || defined(__aarch64__)
@@ -125,7 +124,7 @@ void nr_dlsch_16qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
 #endif
 
 #if defined(__x86_64__) || defined(__i386__)
-    ch_mag = (__m128i *)dl_ch_mag;
+    const __m128i *ch_mag = (__m128i *)dl_ch_mag;
 #elif defined(__arm__) || defined(__aarch64__)
     ch_mag = (int16x8_t *)dl_ch_mag;
 #endif
@@ -194,16 +193,15 @@ void nr_dlsch_16qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
 //----------------------------------------------------------------------------------------------
 
 void nr_dlsch_64qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
-                        const int32_t *rxdataF_comp,
+                        const c16_t *rxdataF_comp,
                         int16_t *dlsch_llr,
-                        const int32_t *dl_ch_mag,
-                        const int32_t *dl_ch_magb,
+                        const c16_t *dl_ch_mag,
+                        const c16_t *dl_ch_magb,
                         const uint32_t len,
                         const uint16_t nb_rb)
 {
 #if defined(__x86_64__) || defined(__i386__)
-  __m128i *rxF = (__m128i*)rxdataF_comp;
-  __m128i *ch_mag,*ch_magb;
+  const __m128i *rxF = (__m128i*)rxdataF_comp;
 #elif defined(__arm__) || defined(__aarch64__)
   int16x8_t *rxF = (int16x8_t*)rxdataF_comp;
   int16x8_t *ch_mag,*ch_magb,xmm1,xmm2;
@@ -215,8 +213,8 @@ void nr_dlsch_64qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
   llr2 = dlsch_llr;
 
 #if defined(__x86_64__) || defined(__i386__)
-  ch_mag = (__m128i *)dl_ch_mag;
-  ch_magb = (__m128i *)dl_ch_magb;
+  const __m128i *ch_mag = (__m128i *)dl_ch_mag;
+  const __m128i *ch_magb = (__m128i *)dl_ch_magb;
 #elif defined(__arm__) || defined(__aarch64__)
   ch_mag = (int16x8_t *)dl_ch_mag;
   ch_magb = (int16x8_t *)dl_ch_magb;
@@ -334,16 +332,15 @@ void nr_dlsch_64qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
 //----------------------------------------------------------------------------------------------
 
 void nr_dlsch_256qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
-                         const int32_t *rxdataF_comp,
+                         const c16_t *rxdataF_comp,
                          int16_t *dlsch_llr,
-                         const int32_t *dl_ch_mag,
-                         const int32_t *dl_ch_magb,
-                         const int32_t *dl_ch_magr,
+                         const c16_t *dl_ch_mag,
+                         const c16_t *dl_ch_magb,
+                         const c16_t *dl_ch_magr,
                          const uint32_t len,
                          const uint16_t nb_rb)
 {
-  __m128i *rxF = (__m128i*)rxdataF_comp;
-  __m128i *ch_mag,*ch_magb,*ch_magr;
+  const __m128i *rxF = (__m128i*)rxdataF_comp;
 
   int i,len2;
   unsigned char len_mod4;
@@ -351,9 +348,9 @@ void nr_dlsch_256qam_llr(const NR_DL_FRAME_PARMS *frame_parms,
 
   llr2 = dlsch_llr;
 
-  ch_mag = (__m128i *)dl_ch_mag;
-  ch_magb = (__m128i *)dl_ch_magb;
-  ch_magr = (__m128i *)dl_ch_magr;
+  const __m128i *ch_mag = (__m128i *)dl_ch_mag;
+  const __m128i *ch_magb = (__m128i *)dl_ch_magb;
+  const __m128i *ch_magr = (__m128i *)dl_ch_magr;
 
   len_mod4 =len&3;
   len2=len>>2;  // length in quad words (4 REs)

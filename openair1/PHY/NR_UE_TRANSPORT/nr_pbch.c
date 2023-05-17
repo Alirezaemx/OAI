@@ -67,7 +67,7 @@ static uint16_t nr_pbch_extract(const NR_DL_FRAME_PARMS *frame_parms,
   for (aarx=0; aarx<frame_parms->nb_antennas_rx; aarx++) {
     unsigned int rx_offset = frame_parms->first_carrier_offset + frame_parms->ssb_start_subcarrier;
     rx_offset = (rx_offset)%(frame_parms->ofdm_symbol_size);
-    struct complex16 *rxF        = rxdataF[aarx];
+    const struct complex16 *rxF        = rxdataF[aarx];
     struct complex16 *rxF_ext    = rxdataF_ext[aarx];
 #ifdef DEBUG_PBCH
     printf("extract_rbs (nushift %d): rx_offset=%d, symbol %u\n",frame_parms->nushift,
@@ -132,7 +132,7 @@ static uint16_t nr_pbch_extract(const NR_DL_FRAME_PARMS *frame_parms,
       }
     }
 
-    struct complex16 *dl_ch0 = &dl_ch_estimates[aarx][((symbol+s_offset)*(frame_parms->ofdm_symbol_size))];
+    const struct complex16 *dl_ch0 = &dl_ch_estimates[aarx][((symbol+s_offset)*(frame_parms->ofdm_symbol_size))];
 
     //printf("dl_ch0 addr %p\n",dl_ch0);
     struct complex16 *dl_ch0_ext = dl_ch_estimates_ext[aarx];
@@ -301,7 +301,7 @@ void nr_pbch_detection_mrc(NR_DL_FRAME_PARMS *frame_parms,
 #endif
 }
 
-static void nr_pbch_unscrambling(const int16_t *demod_pbch_e,
+static void nr_pbch_unscrambling(int16_t *demod_pbch_e,
                                  const uint16_t Nid,
                                  const uint8_t nushift,
                                  const uint16_t M,
@@ -383,12 +383,12 @@ unsigned char sign(int8_t x) {
 
 uint8_t pbch_deinterleaving_pattern[32] = {28,0,31,30,7,29,25,27,5,8,24,9,10,11,12,13,1,4,3,14,15,16,17,2,26,18,19,20,21,22,6,23};
 
-int nr_generate_pbch_llr(const PHY_VARS_NR_UE *ue,
-                         const int symbolPbch,
-                         const int i_ssb,
-                         const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                         const c16_t dl_ch_estimates[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                         int16_t pbch_e_rx[NR_POLAR_PBCH_E])
+void nr_generate_pbch_llr(const PHY_VARS_NR_UE *ue,
+                          const int symbolPbch,
+                          const int i_ssb,
+                          const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                          const c16_t dl_ch_estimates[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
+                          int16_t pbch_e_rx[NR_POLAR_PBCH_E])
 {
   const int symbol_offset = nr_get_ssb_start_symbol(&ue->frame_parms, i_ssb)%(NR_SYMBOLS_PER_SLOT);
   const int nb_re = (symbolPbch == 2) ? 72 : 180;
@@ -470,14 +470,14 @@ int nr_generate_pbch_llr(const PHY_VARS_NR_UE *ue,
 int nr_pbch_decode(PHY_VARS_NR_UE *ue,
                    UE_nr_rxtx_proc_t *proc,
                    const int i_ssb,
-                   const int16_t pbch_e_rx[NR_POLAR_PBCH_E],
+                   int16_t pbch_e_rx[NR_POLAR_PBCH_E],
                    fapiPbch_t *result,
                    nr_phy_data_t *phy_data)
 {
   UEscopeCopy(ue, pbchLlr, pbch_e_rx, sizeof(int16_t), ue->frame_parms.nb_antennas_rx, NR_POLAR_PBCH_E);
   //un-scrambling
   const int unscrambling_mask = (ue->frame_parms.Lmax==64)?0x100006D:0x1000041;
-  int pbch_a_interleaved=0;
+  unsigned int pbch_a_interleaved=0;
   int pbch_a_prime = 0;
   int nushift = (ue->frame_parms.Lmax==4)? i_ssb&3 : i_ssb&7;
   nr_pbch_unscrambling(pbch_e_rx, ue->frame_parms.Nid_cell, nushift, NR_POLAR_PBCH_E, NR_POLAR_PBCH_E,
@@ -496,7 +496,7 @@ int nr_pbch_decode(PHY_VARS_NR_UE *ue,
     nr_fill_dl_indication(&dl_indication, NULL, &rx_ind, proc, ue, phy_data);
     nr_fill_rx_indication(&rx_ind, FAPI_NR_RX_PDU_TYPE_SSB, ue, NULL, NULL, number_pdus, proc, NULL, NULL);
     if (ue->if_inst && ue->if_inst->dl_indication)
-      ue->if_inst->dl_indication(&dl_indication, NULL);
+      ue->if_inst->dl_indication(&dl_indication);
     return(decoderState);
   }
   //  printf("polar decoder output 0x%08x\n",pbch_a_prime);
@@ -568,12 +568,13 @@ int nr_pbch_decode(PHY_VARS_NR_UE *ue,
   nr_fill_rx_indication(&rx_ind, FAPI_NR_RX_PDU_TYPE_SSB, ue, NULL, NULL, number_pdus, proc, (void *)result, NULL);
 
   if (ue->if_inst && ue->if_inst->dl_indication)
-    ue->if_inst->dl_indication(&dl_indication, NULL);
+    ue->if_inst->dl_indication(&dl_indication);
 
   return 0;
 
 }
 
+#if 0
 int nr_rx_pbch(PHY_VARS_NR_UE *ue,
                UE_nr_rxtx_proc_t *proc,
                int estimateSz,
@@ -787,3 +788,4 @@ int nr_rx_pbch(PHY_VARS_NR_UE *ue,
 
   return 0;
 }
+#endif

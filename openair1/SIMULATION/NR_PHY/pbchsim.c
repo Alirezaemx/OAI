@@ -95,11 +95,11 @@ NR_IF_Module_t *NR_IF_Module_init(int Mod_id) { return (NULL); }
 nfapi_mode_t nfapi_getmode(void) { return NFAPI_MODE_UNKNOWN; }
 
 void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
-                           const fapi_nr_dci_indication_t *dci_ind,
-                           const fapi_nr_rx_indication_t *rx_ind,
+                           fapi_nr_dci_indication_t *dci_ind,
+                           fapi_nr_rx_indication_t *rx_ind,
                            const UE_nr_rxtx_proc_t *proc,
                            const PHY_VARS_NR_UE *ue,
-                           const void *phy_data) {}
+                           void *phy_data) {}
 void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
                            const uint8_t pdu_type,
                            const PHY_VARS_NR_UE *ue,

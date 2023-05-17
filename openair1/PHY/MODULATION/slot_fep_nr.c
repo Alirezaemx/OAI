@@ -36,29 +36,25 @@
 
 /* rxdata & rxdataF should be 16 bytes aligned */
 void nr_symbol_fep(const PHY_VARS_NR_UE *ue,
-                   const UE_nr_rxtx_proc_t *proc,
+                   const int slot,
                    const unsigned char symbol,
                    const c16_t rxdata[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size + ue->frame_parms.nb_prefix_samples0],
                    c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
 {
   const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
-  const int Ns = proc->nr_slot_rx;
 
   AssertFatal(symbol < frame_parms->symbols_per_slot, "slot_fep: symbol must be between 0 and %d\n", frame_parms->symbols_per_slot-1);
-  AssertFatal(Ns < frame_parms->slots_per_frame, "slot_fep: Ns must be between 0 and %d\n", frame_parms->slots_per_frame-1);
+  AssertFatal(slot < frame_parms->slots_per_frame, "slot_fep: Ns must be between 0 and %d\n", frame_parms->slots_per_frame-1);
 
   dft_size_idx_t dftsize = get_dft(frame_parms->ofdm_symbol_size);
   for (unsigned char aa=0; aa<frame_parms->nb_antennas_rx; aa++) {
-    start_meas(&ue->rx_dft_stats);
 
     dft(dftsize,
         (int16_t *)&rxdata[aa][0],
         (int16_t *)&rxdataF[aa][0],
         1);
 
-    stop_meas(&ue->rx_dft_stats);
-
-    const int symb_offset = (Ns%frame_parms->slots_per_subframe)*frame_parms->symbols_per_slot;
+    const int symb_offset = (slot%frame_parms->slots_per_subframe)*frame_parms->symbols_per_slot;
     const c16_t rot2 = {.r = frame_parms->symbol_rotation[0][symbol+symb_offset].r,
                         .i = -frame_parms->symbol_rotation[0][symbol+symb_offset].i};
 

@@ -53,7 +53,7 @@
 #include "SCHED_NR_UE/pucch_uci_ue_nr.h"
 #include <openair1/PHY/TOOLS/phy_scope_interface.h>
 #include "PHY/NR_REFSIG/ptrs_nr.h"
-#include "refsig_defs_ue.h"
+#include "openair1/PHY/NR_REFSIG/refsig_defs_ue.h"
 
 //#define DEBUG_PHY_PROC
 #define NR_PDCCH_SCHED
@@ -84,11 +84,11 @@ extern uint64_t downlink_frequency[MAX_NUM_CCs][4];
 unsigned int gain_table[31] = {100,112,126,141,158,178,200,224,251,282,316,359,398,447,501,562,631,708,794,891,1000,1122,1258,1412,1585,1778,1995,2239,2512,2818,3162};
 
 void nr_fill_dl_indication(nr_downlink_indication_t *dl_ind,
-                           const fapi_nr_dci_indication_t *dci_ind,
-                           const fapi_nr_rx_indication_t *rx_ind,
+                           fapi_nr_dci_indication_t *dci_ind,
+                           fapi_nr_rx_indication_t *rx_ind,
                            const UE_nr_rxtx_proc_t *proc,
                            const PHY_VARS_NR_UE *ue,
-                           const void *phy_data)
+                           void *phy_data)
 {
 
   memset((void*)dl_ind, 0, sizeof(nr_downlink_indication_t));
@@ -121,16 +121,13 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
                            const uint16_t n_pdus,
                            const UE_nr_rxtx_proc_t *proc,
                            const void *typeSpecific,
-                           const uint8_t *b)
+                           uint8_t *b)
 {
   if (n_pdus > 1){
     LOG_E(PHY, "In %s: multiple number of DL PDUs not supported yet...\n", __FUNCTION__);
   }
 
-  NR_DL_UE_HARQ_t *dl_harq0 = NULL;
-
   if ((pdu_type !=  FAPI_NR_RX_PDU_TYPE_SSB) && dlsch0) {
-    dl_harq0 = &ue->dl_harq_processes[0][dlsch0->dlsch_config.harq_process_nbr];
     trace_NRpdu(DIRECTION_DOWNLINK,
 		b,
 		dlsch0->dlsch_config.TBS / 8,
@@ -145,7 +142,7 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
     case FAPI_NR_RX_PDU_TYPE_RAR:
     case FAPI_NR_RX_PDU_TYPE_DLSCH:
       if(dlsch0) {
-        dl_harq0 = &ue->dl_harq_processes[0][dlsch0->dlsch_config.harq_process_nbr];
+        const NR_DL_UE_HARQ_t *dl_harq0 = &ue->dl_harq_processes[0][dlsch0->dlsch_config.harq_process_nbr];
         rx_ind->rx_indication_body[n_pdus - 1].pdsch_pdu.harq_pid = dlsch0->dlsch_config.harq_process_nbr;
         rx_ind->rx_indication_body[n_pdus - 1].pdsch_pdu.ack_nack = dl_harq0->ack;
         rx_ind->rx_indication_body[n_pdus - 1].pdsch_pdu.pdu = b;
@@ -158,8 +155,8 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
     case FAPI_NR_RX_PDU_TYPE_SSB: {
         fapi_nr_ssb_pdu_t *ssb_pdu = &rx_ind->rx_indication_body[n_pdus - 1].ssb_pdu;
         if(typeSpecific) {
-          NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
-          fapiPbch_t *pbch = (fapiPbch_t *)typeSpecific;
+          const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
+          const fapiPbch_t *pbch = (fapiPbch_t *)typeSpecific;
           memcpy(ssb_pdu->pdu, pbch->decoded_output, sizeof(pbch->decoded_output));
           ssb_pdu->additional_bits = pbch->xtra_byte;
           ssb_pdu->ssb_index = (frame_parms->ssb_index)&0x7;
@@ -355,79 +352,6 @@ void nr_ue_measurement_procedures(uint16_t l,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_MEASUREMENT_PROCEDURES, VCD_FUNCTION_OUT);
 }
 
-static void nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
-                                  UE_nr_rxtx_proc_t *proc,
-                                  const c16_t dl_ch_estimates[][ue->frame_parms.ofdm_symbol_size],
-                                  const int16_t pbch_e_rx[NR_POLAR_PBCH_E],
-                                  nr_phy_data_t *phy_data)
-{
-  int ret = 0;
-  DevAssert(ue);
-
-  int frame_rx = proc->frame_rx;
-  int nr_slot_rx = proc->nr_slot_rx;
-  int gNB_id = proc->gNB_id;
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PBCH_PROCEDURES, VCD_FUNCTION_IN);
-
-  LOG_D(PHY,"[UE  %d] Frame %d Slot %d, Trying PBCH (NidCell %d, gNB_id %d)\n",ue->Mod_id,frame_rx,nr_slot_rx,ue->frame_parms.Nid_cell,gNB_id);
-  fapiPbch_t result;
-  ret = nr_rx_pbch(ue,
-                   proc,
-                   estimateSz,
-                   dl_ch_estimates,
-                   &ue->frame_parms,
-                   (ue->frame_parms.ssb_index)&7,
-                   SISO,
-                   phy_data,
-                   &result,
-                   rxdataF);
-
-  if (ret==0) {
-
-#ifdef DEBUG_PHY_PROC
-    uint16_t frame_tx;
-    LOG_D(PHY,"[UE %d] frame %d, nr_slot_rx %d, Received PBCH (MIB): frame_tx %d. N_RB_DL %d\n",
-    ue->Mod_id,
-    frame_rx,
-    nr_slot_rx,
-    frame_tx,
-    ue->frame_parms.N_RB_DL);
-#endif
-
-  } else {
-    LOG_E(PHY,"[UE %d] frame %d, nr_slot_rx %d, Error decoding PBCH!\n",
-	  ue->Mod_id,frame_rx, nr_slot_rx);
-    /*FILE *fd;
-    if ((fd = fopen("rxsig_frame0.dat","w")) != NULL) {
-                  fwrite((void *)&ue->common_vars.rxdata[0][0],
-                         sizeof(int32_t),
-                         ue->frame_parms.samples_per_frame,
-                         fd);
-                  LOG_I(PHY,"Dummping Frame ... bye bye \n");
-                  fclose(fd);
-                  exit(0);
-                }*/
-
-    /*
-    write_output("rxsig0.m","rxs0", ue->common_vars.rxdata[0],ue->frame_parms.samples_per_subframe,1,1);
-
-
-      write_output("H00.m","h00",&(ue->common_vars.dl_ch_estimates[0][0][0]),((ue->frame_parms.Ncp==0)?7:6)*(ue->frame_parms.ofdm_symbol_size),1,1);
-      write_output("H10.m","h10",&(ue->common_vars.dl_ch_estimates[0][2][0]),((ue->frame_parms.Ncp==0)?7:6)*(ue->frame_parms.ofdm_symbol_size),1,1);
-
-      write_output("rxsigF0.m","rxsF0", ue->common_vars.rxdataF[0],8*ue->frame_parms.ofdm_symbol_size,1,1);
-      exit(-1);
-    */
-
-  }
-
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PBCH_PROCEDURES, VCD_FUNCTION_OUT);
-}
-
-
-
 unsigned int nr_get_tx_amp(int power_dBm, int power_max_dBm, int N_RB_UL, int nb_rb)
 {
 
@@ -445,6 +369,17 @@ unsigned int nr_get_tx_amp(int power_dBm, int power_max_dBm, int N_RB_UL, int nb
   return(0);
 }
 
+/* To be called after PDCCH scheduled */
+void nr_pdcch_slot_init(const nr_phy_data_t *phyData,
+                        PHY_VARS_NR_UE *ue)
+{
+  const unsigned short scrambling_id = phyData->phy_pdcch_config.pdcch_config[0].coreset.pdcch_dmrs_scrambling_id;
+  // checking if re-initialization of scrambling IDs is needed (should be done here but scrambling ID for PDCCH is not taken from RRC)
+  if (scrambling_id != ue->scramblingID_pdcch){
+    ue->scramblingID_pdcch = scrambling_id;
+    nr_gold_pdcch(ue,ue->scramblingID_pdcch);
+  }
+}
 /* To be called every slot after PDSCH scheduled */
 void nr_pdsch_slot_init(const nr_phy_data_t *phyData,
                         PHY_VARS_NR_UE *ue)
@@ -455,7 +390,7 @@ void nr_pdsch_slot_init(const nr_phy_data_t *phyData,
   const int nscid             = dlsch0->dlsch_config.nscid;
   if (scramblingId != ue->scramblingID_dlsch[nscid]) {
     ue->scramblingID_dlsch[nscid] = scramblingId;
-    nr_gold_pdsch(ue, nscid, scramblingId);
+    nr_gold_pdsch(nscid, scramblingId, ue);
   }
 }
 
@@ -780,7 +715,7 @@ void nr_pdsch_measurements(const NR_DL_FRAME_PARMS *frame_parms,
                                                dlsch->dlsch_config.number_symbols)) {
       for (int l = 0; l < dlsch->Nl; l++) {
         for (int atx = 0; atx < dlsch->Nl; atx++) {
-          measurements->rx_correlation[0][aarx][l * dlsch->Nl + atx] = signal_energy(rho[aarx][l][atx], get_nb_re_pdsch_symbol(symbol, dlsch));
+          measurements->rx_correlation[0][aarx][l * dlsch->Nl + atx] = signal_energy(&rho[aarx][l][atx], get_nb_re_pdsch_symbol(symbol, dlsch));
         }
       }
     } // First symbol with data
@@ -819,23 +754,23 @@ void nr_pdsch_comp_out(void *parms)
   const UE_nr_rxtx_proc_t *proc = msg->proc;
   const NR_UE_DLSCH_t *dlsch = &msg->phy_data->dlsch[0];
   const int symbolVecSize = dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB;
-  const c16_t (*dl_ch_est)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+  const c16_t (*dl_ch_est)[NR_SYMBOLS_PER_SLOT][dlsch->Nl][ue->frame_parms.nb_antennas_rx]
                           [ue->frame_parms.ofdm_symbol_size] =
-    (const c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+    (const c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl][ue->frame_parms.nb_antennas_rx]
                     [ue->frame_parms.ofdm_symbol_size])msg->pdsch_dl_ch_estimates;
 
-  const c16_t (*dl_ch_est_ext)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+  c16_t (*dl_ch_est_ext)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
                               [symbolVecSize] = 
-    (const c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+    (c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
                     [symbolVecSize])msg->pdsch_dl_ch_est_ext;
 
   nr_generate_pdsch_extracted_chestimates(ue, dlsch, msg->symbol, *dl_ch_est, *dl_ch_est_ext);
   nr_pdsch_channel_level_scaling(&ue->frame_parms, dlsch, msg->symbol, *dl_ch_est_ext);
   const int maxh = get_maxh_extimates(&ue->frame_parms, dlsch, msg->symbol, *dl_ch_est_ext);
 
-  const c16_t (*rxdataF_ext)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+  const c16_t (*rxdataF_ext)[ue->frame_parms.nb_antennas_rx]
                             [symbolVecSize] =
-    (const c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+    (const c16_t (*)[ue->frame_parms.nb_antennas_rx]
                     [symbolVecSize])msg->rxdataF_ext;
 
   c16_t (*dl_ch_mag)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
@@ -897,6 +832,7 @@ void nr_pdsch_comp_out(void *parms)
   }
 }
 
+#if 0
 void nr_ue_pdsch_procedures_symbol(void *params)
 {
   nr_ue_symb_data_t *symbMsg = (nr_ue_symb_data_t *)params;
@@ -1122,6 +1058,7 @@ void nr_ue_pdsch_procedures_symbol(void *params)
 
   stop_meas(&symbMsg->pdsch_pre_proc);
 }
+#endif
 
 /* Performs for a OFDM symbol:
   1) PTRS phase compensation
@@ -1132,16 +1069,15 @@ void pdsch_llr_generation(const NR_DL_FRAME_PARMS *frame_parms,
                           const NR_UE_DLSCH_t *dlsch,
                           const c16_t ptrs_phase[frame_parms->nb_antennas_rx][NR_SYMBOLS_PER_SLOT],
                           const int32_t ptrs_re[frame_parms->nb_antennas_rx][NR_SYMBOLS_PER_SLOT],
-                          const int32_t dl_ch_mag[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                          const int32_t dl_ch_magb[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                          const int32_t dl_ch_magr[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                          const c16_t rxdataF_comp[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                          const c16_t dl_ch_mag[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                          const c16_t dl_ch_magb[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                          const c16_t dl_ch_magr[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
+                          c16_t rxdataF_comp[dlsch->Nl][frame_parms->nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
                           const int llrSize,
                           int16_t layerLlr[dlsch->Nl][llrSize])
 {
   const int nb_re_pdsch = get_nb_re_pdsch_symbol(symbol, dlsch);
   int dl_valid_re = nb_re_pdsch;
-  const int pdsch_nb_rb    = dlsch->dlsch_config.number_rbs;
   const int pduBitmap = dlsch->dlsch_config.pduBitmap;
   for (int aarx = 0; aarx < frame_parms->nb_antennas_rx; aarx++) {
     /* PTRS phase compensation */
@@ -1167,7 +1103,6 @@ void pdsch_llr_generation_Tpool(void *parms)
 {
   nr_ue_symb_data_t *msg = (nr_ue_symb_data_t *)parms;
   const PHY_VARS_NR_UE *ue = msg->UE;
-  const UE_nr_rxtx_proc_t *proc = msg->proc;
   const NR_UE_DLSCH_t *dlsch = &msg->phy_data->dlsch[0];
   const c16_t (*ptrs_phase)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT] =
     (const c16_t (*)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT])msg->ptrs_phase_per_slot;
@@ -1179,11 +1114,11 @@ void pdsch_llr_generation_Tpool(void *parms)
     (const c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_magb;
   const c16_t (*dl_ch_magr)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB] =
     (const c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_magr;
-  const c16_t (*rxdataF_comp)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB] =
-    (const c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->rxdataF_comp;
+  c16_t (*rxdataF_comp)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB] =
+    (c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->rxdataF_comp;
   int16_t (*layerLlr)[dlsch->Nl][msg->llrSize] = (int16_t (*)[dlsch->Nl][msg->llrSize])msg->layer_llr;
 
-  pdsch_llr_generation(ue,
+  pdsch_llr_generation(&ue->frame_parms,
                        msg->symbol,
                        dlsch,
                        *ptrs_phase,
@@ -1197,22 +1132,20 @@ void pdsch_llr_generation_Tpool(void *parms)
 }
 
 /* Decode DLSCH from LLRs and send TB to MAC */
-bool pdsch_post_processing(const PHY_VARS_NR_UE *ue,
+bool pdsch_post_processing(PHY_VARS_NR_UE *ue,
                            const UE_nr_rxtx_proc_t *proc,
                            const NR_UE_DLSCH_t *dlsch,
-                           const c16_t ptrs_phase[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT],
+                           c16_t ptrs_phase[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT],
                            const int32_t ptrs_re[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT],
-                           const int32_t dl_ch_mag[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                           const c16_t dl_ch_mag[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
                                                   [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                           const int32_t dl_ch_magb[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                           const c16_t dl_ch_magb[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
                                                    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                           const int32_t dl_ch_magr[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                           const c16_t dl_ch_magr[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
                                                    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB],
-                           const c16_t rxdataF_comp[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                           c16_t rxdataF_comp[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
                                                    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])
 {
-  start_meas(&ue->pdsch_post_proc);
-
   const int pduBitmap = dlsch->dlsch_config.pduBitmap;
   for (int aarx = 0; aarx < ue->frame_parms.nb_antennas_rx; aarx++) {
     /* Interpolate PTRS estimated in time domain */
@@ -1250,7 +1183,7 @@ bool pdsch_post_processing(const PHY_VARS_NR_UE *ue,
 
   /* Collect processed info from finished threads */
   for (int i = 0; i < s1; i++) {
-    const notifiedFIFO_elt_t *res = pullTpool(&resFifo, &(get_nrUE_params()->Tpool));
+    notifiedFIFO_elt_t *res = pullTpool(&resFifo, &(get_nrUE_params()->Tpool));
     LOG_D(PHY, "Got LLRs from symbol %d\n", ((nr_ue_symb_data_t *)res->msgData)->symbol);
     if (res == NULL)
       LOG_E(PHY, "Tpool has been aborted\n");
@@ -1278,33 +1211,26 @@ bool pdsch_post_processing(const PHY_VARS_NR_UE *ue,
   const int nb_codewords = NR_MAX_NB_LAYERS > 4 ? 2 : 1;
   int16_t *llr = (int16_t *)malloc16_clear(nb_codewords * rx_llr_buf_sz * sizeof(int16_t));
 
-  const int harq_pid = dlsch->dlsch_config.harq_process_nbr;
-  NR_DL_UE_HARQ_t *dlsch0_harq = &ue->dl_harq_processes[0][harq_pid];
-  NR_DL_UE_HARQ_t *dlsch1_harq = &ue->dl_harq_processes[1][harq_pid];
-
   /* LLR Layer Demapping */
   int dl_valid_re[NR_SYMBOLS_PER_SLOT];
   compute_dl_valid_re(dlsch, ptrs_re, dl_valid_re);
   nr_dlsch_layer_demapping(dlsch->Nl,
                            dlsch->dlsch_config.qamModOrder,
                            llr_per_symbol,
-                           layer_llr,
+                           *((const int16_t (*)[NR_SYMBOLS_PER_SLOT][NR_MAX_NB_LAYERS][llr_per_symbol])layer_llr),
                            dlsch,
                            dl_valid_re,
                            rx_llr_buf_sz,
                            llr);
 
-  UEscopeCopy(ue, pdschLlr, llr[0], sizeof(int16_t), 1, rx_llr_size);
+  UEscopeCopy(ue, pdschLlr, llr, sizeof(int16_t), 1, rx_llr_size);
 
-  stop_meas(&ue->pdsch_post_proc);
   LOG_D(PHY, "DLSCH data reception at nr_slot_rx: %d\n", proc->nr_slot_rx);
 
-  start_meas(&ue->dlsch_procedures_stat);
-  bool dec_res = nr_ue_dlsch_procedures(ue, proc, dlsch, llr);
-  stop_meas(&ue->dlsch_procedures_stat);
+  bool dec_res = nr_ue_dlsch_procedures(ue, proc, dlsch, rx_llr_buf_sz, *((const int16_t (*)[nb_codewords][rx_llr_buf_sz])llr));
 
   if (ue->phy_sim_pdsch_llr)
-    memcpy(ue->phy_sim_pdsch_llr, llr[0], sizeof(int16_t)*rx_llr_buf_sz);
+    memcpy(ue->phy_sim_pdsch_llr, llr, sizeof(int16_t)*rx_llr_buf_sz);
 
   /* free LLR memory */
   free(llr);
@@ -1358,7 +1284,7 @@ bool nr_ue_pdsch_procedures(void *parms)
   }
 
   for (int resIdx = 0; resIdx < dlsch->dlsch_config.number_symbols; resIdx++) {
-    const notifiedFIFO_elt_t *res = pullTpool(&nf, &(get_nrUE_params()->Tpool));
+    notifiedFIFO_elt_t *res = pullTpool(&nf, &(get_nrUE_params()->Tpool));
     if (res == NULL)
       LOG_E(PHY, "Tpool has been aborted\n");
     else
@@ -1368,12 +1294,16 @@ bool nr_ue_pdsch_procedures(void *parms)
   return pdsch_post_processing(msg->UE,
                                msg->proc,
                                dlsch,
-                               msg->ptrs_phase_per_slot,
-                               msg->ptrs_re_per_slot,
-                               msg->dl_ch_mag,
-                               msg->dl_ch_magb,
-                               msg->dl_ch_magr,
-                               msg->rxdataF_comp);
+                               (c16_t (*)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT])msg->ptrs_phase_per_slot,
+                               (int32_t (*)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT])msg->ptrs_re_per_slot,
+                               (c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_mag,
+                               (c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_magb,
+                               (c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_magr,
+                               (c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->rxdataF_comp);
 }
 
 void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
@@ -1384,8 +1314,9 @@ void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
 {
   nr_generate_csi_rs(&ue->frame_parms,
                      AMP,
-                     (nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *) csirs_config_pdu,
                      proc->nr_slot_rx,
+                     (nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *) csirs_config_pdu,
+                     nr_csi_info->csi_rs_generated_signal,
                      nr_csi_info,
                      csi_phy_parms);
 }
@@ -1428,9 +1359,10 @@ void send_slot_ind(notifiedFIFO_t *nf, int slot) {
 }
 
 bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
-                            UE_nr_rxtx_proc_t *proc,
-                            NR_UE_DLSCH_t dlsch[2],
-                            int16_t* llr[2]) {
+                            const UE_nr_rxtx_proc_t *proc,
+                            const NR_UE_DLSCH_t dlsch[2],
+                            const int llrSize,
+                            int16_t llr[NR_MAX_NB_LAYERS > 4 ? 2 : 1][llrSize]) {
 
   if (dlsch[0].active == false) {
     LOG_E(PHY, "DLSCH should be active when calling this function\n");
@@ -1714,7 +1646,6 @@ int nr_process_pbch_symbol(PHY_VARS_NR_UE *ue,
 
   for (int aarx = 0; aarx < ue->frame_parms.nb_antennas_rx; aarx++) {
     nr_pbch_channel_estimation(ue,
-                               proc,
                                (startPbchSymb%ue->frame_parms.symbols_per_slot)-1,
                                ssbIndex&7,
                                symbIdxInFrame > (ue->frame_parms.slots_per_frame * NR_SYMBOLS_PER_SLOT / 2),

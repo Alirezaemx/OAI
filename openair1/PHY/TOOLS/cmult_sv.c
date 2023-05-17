@@ -84,7 +84,7 @@ void multadd_real_vector_complex_scalar(const int16_t *x, const int16_t *alpha, 
 }
 
 void rotate_cpx_vector(c16_t *x,
-                       c16_t *alpha,
+                       const c16_t *alpha,
                        c16_t *y,
                        uint32_t N,
                        uint16_t output_shift)

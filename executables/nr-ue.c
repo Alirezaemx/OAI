@@ -891,6 +891,7 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
     if (symbol == 0) {
       process_synch_request(UE, proc);
       pdcch_sched_request(UE, proc, &phy_data);
+      nr_pdcch_slot_init(&phy_data, UE);
       pdcch_state = SCHEDULED;
     }
 
@@ -907,6 +908,7 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
         nr_pdcch_dci_indication(proc, pdcchLlrSize, UE, &phy_data, pdcchLlr);
         pdcch_state = DONE;
         pdsch_state = (phy_data.dlsch[0].active) ? SCHEDULED : DONE;
+        nr_pdsch_slot_init(&phy_data, UE);
         csirs_state = (phy_data.csirs_vars.active) ? SCHEDULED : DONE;
         csiim_state = (phy_data.csiim_vars.active) ? SCHEDULED : DONE;
         free(pdcchLlr); pdcchLlr = NULL;
@@ -1017,6 +1019,7 @@ static void slot_process(const PHY_VARS_NR_UE *UE,
         LOG_I(NR_PHY,"============================================\n");
       }
     }
+  }
 }
 
 void *UE_thread(void *arg) {

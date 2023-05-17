@@ -167,12 +167,10 @@ int nr_pdsch_dmrs_rx(const PHY_VARS_NR_UE *ue,
 }
 
 
-int nr_pdcch_dmrs_rx(PHY_VARS_NR_UE *ue,
-                     unsigned int Ns,
-                     unsigned int *nr_gold_pdcch,
+int nr_pdcch_dmrs_rx(const unsigned int *nr_gold_pdcch,
                      int32_t *output,
-                     unsigned short p,
-                     unsigned short nb_rb_coreset)
+                     const unsigned short p,
+                     const unsigned short nb_rb_coreset)
 {
   uint8_t idx=0;
   //uint8_t pdcch_rb_offset =0;
@@ -195,12 +193,11 @@ int nr_pdcch_dmrs_rx(PHY_VARS_NR_UE *ue,
 }
 
 
-int nr_pbch_dmrs_rx(int symbol,
-                    unsigned int *nr_gold_pbch,
+int nr_pbch_dmrs_rx(const int symbol,
+                    const unsigned int *nr_gold_pbch,
                     int32_t *output)
 {
   int m,m0,m1;
-  uint8_t idx=0;
   AssertFatal(symbol>=0 && symbol <3,"illegal symbol %d\n",symbol);
   if (symbol == 0) {
     m0=0;
@@ -217,7 +214,7 @@ int nr_pbch_dmrs_rx(int symbol,
   //    printf("Generating pilots symbol %d, m0 %d, m1 %d\n",symbol,m0,m1);
   /// QPSK modulation
   for (m=m0; m<m1; m++) {
-    idx = ((((nr_gold_pbch[(m<<1)>>5])>>((m<<1)&0x1f))&1)<<1) ^ (((nr_gold_pbch[((m<<1)+1)>>5])>>(((m<<1)+1)&0x1f))&1);
+    const int idx = ((((nr_gold_pbch[(m<<1)>>5])>>((m<<1)&0x1f))&1)<<1) ^ (((nr_gold_pbch[((m<<1)+1)>>5])>>(((m<<1)+1)&0x1f))&1);
     ((int16_t*)output)[(m-m0)<<1] = nr_rx_mod_table[(NR_MOD_TABLE_QPSK_OFFSET + idx)<<1];
     ((int16_t*)output)[((m-m0)<<1)+1] = nr_rx_mod_table[((NR_MOD_TABLE_QPSK_OFFSET + idx)<<1) + 1];
     
@@ -238,7 +235,7 @@ int nr_pbch_dmrs_rx(int symbol,
   \param length is number of RE in a OFDM symbol
   \param *output pointer to all ptrs RE in a OFDM symbol
 */
-void nr_gen_ref_conj_symbols(uint32_t *in, uint32_t length, int16_t *output, uint16_t offset, int mod_order)
+void nr_gen_ref_conj_symbols(const uint32_t *in, uint32_t length, int16_t *output, uint16_t offset, int mod_order)
 {
   uint8_t idx, b_idx;
   for (int i=0; i<length/mod_order; i++)
