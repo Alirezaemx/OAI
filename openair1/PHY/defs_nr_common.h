@@ -126,7 +126,7 @@ typedef struct {
   uint16_t csi_gold_init;
   uint32_t ***nr_gold_csi_rs;
   uint8_t csi_rs_generated_signal_bits;
-  int32_t **csi_rs_generated_signal;
+  c16_t **csi_rs_generated_signal;
 } nr_csi_info_t;
 
 typedef struct nr_csi_phy_parms_s {

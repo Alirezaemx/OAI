@@ -200,7 +200,7 @@ void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                   const UE_nr_rxtx_proc_t *proc,
                                   const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
                                   const nr_csi_info_t *nr_csi_info,
-                                  const int32_t **csi_rs_generated_signal,
+                                  const c16_t **csi_rs_generated_signal,
                                   const uint8_t N_cdm_groups,
                                   const uint8_t CDM_group_size,
                                   const uint8_t k_prime,
@@ -211,7 +211,7 @@ void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                   const uint8_t l_overline[16],
                                   const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
                                   const int symbol,
-                                  int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
+                                  c16_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
                                   nr_csi_symbol_res_t *res)
 {
   const NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
@@ -248,9 +248,9 @@ void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
               const uint16_t kinit = (frame_parms->first_carrier_offset + rb*NR_NB_SC_PER_RB) % frame_parms->ofdm_symbol_size;
               const uint16_t k = kinit + k_overline[cdm_id] + kp;
 
-              c16_t *tx_csi_rs_signal = (c16_t*)&csi_rs_generated_signal[port_tx][symbol_offset+dataF_offset];
-              c16_t *rx_csi_rs_signal = (c16_t*)rxdataF[ant_rx];
-              c16_t *csi_rs_ls_estimated_channel16 = (c16_t*)&csi_rs_ls_estimated_channel[ant_rx][port_tx][0];
+              const c16_t *tx_csi_rs_signal = &csi_rs_generated_signal[port_tx][symbol_offset+dataF_offset];
+              const c16_t *rx_csi_rs_signal = rxdataF[ant_rx];
+              c16_t *csi_rs_ls_estimated_channel16 = &csi_rs_ls_estimated_channel[ant_rx][port_tx][0];
 
               int16_t csi_rs_ls_estimated_channel_re = (int16_t)(((int32_t)tx_csi_rs_signal[k].r*rx_csi_rs_signal[k].r + (int32_t)tx_csi_rs_signal[k].i*rx_csi_rs_signal[k].i)>>nr_csi_info->csi_rs_generated_signal_bits);
               int16_t csi_rs_ls_estimated_channel_im = (int16_t)(((int32_t)tx_csi_rs_signal[k].r*rx_csi_rs_signal[k].i - (int32_t)tx_csi_rs_signal[k].i*rx_csi_rs_signal[k].r)>>nr_csi_info->csi_rs_generated_signal_bits);
@@ -261,7 +261,7 @@ void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
               csi_rs_ls_estimated_channel16[kinit].i += csi_rs_ls_estimated_channel_im;
 
               res->rsrpSum1 += (((int32_t)(rx_csi_rs_signal[k].r)*rx_csi_rs_signal[k].r) +
-                               ((int32_t)(rx_csi_rs_signal[k].i)*rx_csi_rs_signal[k].i));
+                                ((int32_t)(rx_csi_rs_signal[k].i)*rx_csi_rs_signal[k].i));
 
               res->count++;
             }

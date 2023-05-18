@@ -181,8 +181,8 @@ void nr_fill_rx_indication(fapi_nr_rx_indication_t *rx_ind,
                            uint8_t *b);
 
 bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
-                            const UE_nr_rxtx_proc_t *proc,
-                            const NR_UE_DLSCH_t dlsch[2],
+                            UE_nr_rxtx_proc_t *proc,
+                            NR_UE_DLSCH_t dlsch[2],
                             const int llrSize,
                             int16_t llr[NR_MAX_NB_LAYERS > 4 ? 2 : 1][llrSize]);
 
@@ -200,7 +200,7 @@ void nr_ue_csi_rs_symbol_procedures(const PHY_VARS_NR_UE *ue,
                                     const int symbol,
                                     const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
                                     const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size],
-                                    int32_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
+                                    c16_t csi_rs_ls_estimates[ue->frame_parms.nb_antennas_rx][csi_phy_parms->N_ports][ue->frame_parms.ofdm_symbol_size],
                                     nr_csi_symbol_res_t *csi_symb_res);
 
 int nr_ue_csi_rs_procedures(const PHY_VARS_NR_UE *ue,
@@ -214,7 +214,7 @@ void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                   const UE_nr_rxtx_proc_t *proc,
                                   const fapi_nr_dl_config_csirs_pdu_rel15_t *csirs_config_pdu,
                                   const nr_csi_info_t *nr_csi_info,
-                                  const int32_t **csi_rs_generated_signal,
+                                  const c16_t **csi_rs_generated_signal,
                                   const uint8_t N_cdm_groups,
                                   const uint8_t CDM_group_size,
                                   const uint8_t k_prime,
@@ -225,7 +225,7 @@ void nr_csi_rs_channel_estimation(const PHY_VARS_NR_UE *ue,
                                   const uint8_t l_overline[16],
                                   const c16_t rxdataF[][ue->frame_parms.ofdm_symbol_size],
                                   const int symbol,
-                                  int32_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
+                                  c16_t csi_rs_ls_estimated_channel[][N_ports][ue->frame_parms.ofdm_symbol_size],
                                   nr_csi_symbol_res_t *res);
 
 void nr_csi_im_symbol_power_estimation(const PHY_VARS_NR_UE *ue,

@@ -37,6 +37,7 @@
 #include <math.h>
 #include "nfapi_interface.h"
 #include <openair1/PHY/LTE_TRANSPORT/transport_proto.h>
+#include "openair1/PHY/NR_REFSIG/ss_pbch_nr.h"
 
 #define NR_PUSCH_x 2 // UCI placeholder bit TS 38.212 V15.4.0 subclause 5.3.3.1
 #define NR_PUSCH_y 3 // UCI placeholder bit
@@ -316,7 +317,7 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t *proc,
                       PHY_VARS_NR_UE *ue,
                       const int pbch_initial_symbol,
                       nr_phy_data_t *phy_data,
-                      const c16_t rxdataF[NR_SYMBOLS_PER_SLOT][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
+                      const c16_t rxdataF[NR_N_SYMBOLS_SSB][ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 
 #ifndef modOrder
@@ -373,7 +374,7 @@ void nr_pdcch_unscrambling(int16_t *z,
 
 uint8_t nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
                                   const UE_nr_rxtx_proc_t *proc,
-                                  const int16_t *pdcch_e_rx,
+                                  int16_t *pdcch_e_rx,
                                   const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
                                   int *dci_thres,
                                   fapi_nr_dci_indication_t *dci_ind);
@@ -438,7 +439,7 @@ int get_nb_re_pdsch_symbol(const int symbol,
 
 int get_max_llr_per_symbol(const NR_UE_DLSCH_t *dlsch);
 
-int get_llr_length_pdcch(const NR_UE_PDCCH_CONFIG *phy_pdcch_config);
+int get_pdcch_max_rbs(const NR_UE_PDCCH_CONFIG *phy_pdcch_config);
 
 void nr_compute_channel_correlation(const int n_layers,
                                     const int length,
@@ -484,7 +485,6 @@ void nr_dlsch_detection_mrc(const int n_tx,
                             const int nb_rb,
                             const int length,
                             c16_t rxdataF_comp[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                            int rho[n_tx][n_tx][nb_rb * NR_NB_SC_PER_RB],
                             c16_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                             c16_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                             c16_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB]);
@@ -510,7 +510,6 @@ void nr_zero_forcing_rx(const int n_tx,
                         const int shift,
                         const c16_t dl_ch_estimates_ext[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t rxdataF_comp[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                        int rho[n_tx][n_tx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB]);

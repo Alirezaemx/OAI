@@ -128,10 +128,10 @@ int get_max_llr_per_symbol(const NR_UE_DLSCH_t *dlsch)
   return nb_llr;
 }
 
-int get_llr_length_pdcch(const NR_UE_PDCCH_CONFIG *phy_pdcch_config)
+int get_pdcch_max_rbs(const NR_UE_PDCCH_CONFIG *phy_pdcch_config)
 {
-  int nb_rb;
-  int rb_offset;
+  int nb_rb = 0;
+  int rb_offset = 0;
   for (int i = 0; i < phy_pdcch_config->nb_search_space; i++) {
     int tmp = 0;
     get_coreset_rballoc(phy_pdcch_config->pdcch_config[i].coreset.frequency_domain_resource, &tmp, &rb_offset);
@@ -1624,7 +1624,6 @@ void nr_dlsch_detection_mrc(const int n_tx,
                             const int nb_rb,
                             const int length,
                             c16_t rxdataF_comp[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                            int rho[n_tx][n_tx][nb_rb * NR_NB_SC_PER_RB],
                             c16_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                             c16_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                             c16_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB])
@@ -1668,15 +1667,6 @@ void nr_dlsch_detection_mrc(const int n_tx,
     // printf("mrc mag0b = %d = %d \n",((int16_t*)&dl_ch_mag128_0b[0])[0],((int16_t*)&dl_ch_mag128_0b[0])[1]);
     }
 #endif
-    if (rho) {
-      /*rho128_0 = (__m128i *) &rho[0][symbol*frame_parms->N_RB_DL*12];
-      rho128_1 = (__m128i *) &rho[1][symbol*frame_parms->N_RB_DL*12];
-      for (i=0; i<nb_rb_0*3; i++) {
-        //      print_shorts("mrc rho0:",&rho128_0[i]);
-        //      print_shorts("mrc rho1:",&rho128_1[i]);
-        rho128_0[i] = _mm_adds_epi16(_mm_srai_epi16(rho128_0[i],1),_mm_srai_epi16(rho128_1[i],1));
-      }*/
-      }
     _mm_empty();
     _m_empty();
   }
@@ -2052,7 +2042,6 @@ void nr_zero_forcing_rx(const int n_tx,
                         const int shift,
                         const c16_t dl_ch_estimates_ext[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t rxdataF_comp[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
-                        int rho[n_tx][n_tx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t dl_ch_mag[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t dl_ch_magb[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB],
                         c16_t dl_ch_magr[n_tx][n_rx][nb_rb * NR_NB_SC_PER_RB])

@@ -192,7 +192,6 @@ void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
   const int k_end   = 183;
   const int slot = proc->nr_slot_rx;
   const unsigned int ssb_offset = ue->frame_parms.first_carrier_offset + ue->frame_parms.ssb_start_subcarrier;
-  int symbol_offset = nr_get_ssb_start_symbol(&ue->frame_parms,ssb_index);
 
   uint32_t rsrp = 0;
 

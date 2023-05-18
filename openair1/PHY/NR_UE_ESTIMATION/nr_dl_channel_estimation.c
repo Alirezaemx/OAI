@@ -604,7 +604,7 @@ int nr_pbch_dmrs_correlation(PHY_VARS_NR_UE *ue,
 
   for (int aarx=0; aarx<ue->frame_parms.nb_antennas_rx; aarx++) {
 
-    const int re_offset = ssb_offset;
+    int re_offset = ssb_offset;
     const int16_t *pil   = (int16_t *)&pilot[0];
     const int16_t *rxF   = (int16_t *)&rxdataF[aarx][k+re_offset];
 

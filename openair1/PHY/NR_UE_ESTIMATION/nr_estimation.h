@@ -104,13 +104,13 @@ void nr_ue_measurements(PHY_VARS_NR_UE *ue,
                         int32_t dl_ch_estimates[][pdsch_est_size]);
 
 void nr_ue_ssb_rsrp_measurements(PHY_VARS_NR_UE *ue,
-                                 uint8_t gNB_index,
-                                 UE_nr_rxtx_proc_t *proc,
-                                 c16_t **rxdataF[NR_SYMBOLS_PER_SLOT]);
+                                 const int ssb_index,
+                                 const UE_nr_rxtx_proc_t *proc,
+                                 const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 void nr_ue_rrc_measurements(PHY_VARS_NR_UE *ue,
-                            UE_nr_rxtx_proc_t *proc,
-                            c16_t **rxdataF[NR_SYMBOLS_PER_SLOT]);
+                            const UE_nr_rxtx_proc_t *proc,
+                            const c16_t rxdataF[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
 
 void phy_adjust_gain_nr(PHY_VARS_NR_UE *ue,
                         uint32_t rx_power_fil_dB,

@@ -856,7 +856,7 @@ int main(int argc, char **argv)
   // compute the scrambling IDs for PDSCH DMRS
   for (int i = 0; i < 2; i++) {
     UE->scramblingID_dlsch[i] = frame_parms->Nid_cell;
-    nr_gold_pdsch(UE, i, UE->scramblingID_dlsch[i]);
+    nr_gold_pdsch(i, UE->scramblingID_dlsch[i], UE);
   }
 
   nr_l2_init_ue(NULL);
@@ -1032,11 +1032,10 @@ int main(int argc, char **argv)
         nfapi_nr_dl_tti_pdsch_pdu_rel15_t *pdsch_pdu_rel15 = &dl_tti_pdsch_pdu->pdsch_pdu.pdsch_pdu_rel15;
         pdu_bit_map = pdsch_pdu_rel15->pduBitmap;
         if(pdu_bit_map & 0x1) {
-          set_ptrs_symb_idx(&dlPtrsSymPos,
-                            pdsch_pdu_rel15->NrOfSymbols,
-                            pdsch_pdu_rel15->StartSymbolIndex,
-                            1<<pdsch_pdu_rel15->PTRSTimeDensity,
-                            pdsch_pdu_rel15->dlDmrsSymbPos);
+          dlPtrsSymPos = get_ptrs_symb_idx(pdsch_pdu_rel15->NrOfSymbols,
+                                           pdsch_pdu_rel15->StartSymbolIndex,
+                                           1<<pdsch_pdu_rel15->PTRSTimeDensity,
+                                           pdsch_pdu_rel15->dlDmrsSymbPos);
           ptrsSymbPerSlot = get_ptrs_symbols_in_slot(dlPtrsSymPos, pdsch_pdu_rel15->StartSymbolIndex, pdsch_pdu_rel15->NrOfSymbols);
           ptrsRePerSymb = ((rel15->rbSize + rel15->PTRSFreqDensity - 1)/rel15->PTRSFreqDensity);
           LOG_D(PHY,"[DLSIM] PTRS Symbols in a slot: %2u, RE per Symbol: %3u, RE in a slot %4d\n", ptrsSymbPerSlot,ptrsRePerSymb, ptrsSymbPerSlot*ptrsRePerSymb );
@@ -1136,6 +1135,7 @@ int main(int argc, char **argv)
                                    {0.1, 0.2, 1.0, 0.2}, //rx 2
                                    {0.05, 0.1, 0.2, 1.0}};//rx 3
 
+        int slotSampCnt = 0;
         for (i=frame_parms->get_samples_slot_timestamp(slot,frame_parms,0); 
              i<frame_parms->get_samples_slot_timestamp(slot+1,frame_parms,0);
              i++) {
@@ -1152,49 +1152,74 @@ int main(int argc, char **argv)
               }
             }
             // Add Gaussian noise
-            rxdata[aa_rx][i].r = (short) ((r_re[aa_rx][i] + sqrt(sigma2/2)*gaussdouble(0.0,1.0)));
-            rxdata[aa_rx][i].i = (short) ((r_im[aa_rx][i] + sqrt(sigma2/2)*gaussdouble(0.0,1.0)));
+            rxdata[aa_rx][slotSampCnt].r = (short) ((r_re[aa_rx][i] + sqrt(sigma2/2)*gaussdouble(0.0,1.0)));
+            rxdata[aa_rx][slotSampCnt].i = (short) ((r_im[aa_rx][i] + sqrt(sigma2/2)*gaussdouble(0.0,1.0)));
+            //printf("%d: %d.%d\n", slotSampCnt, rxdata[aa_rx][slotSampCnt].r, rxdata[aa_rx][slotSampCnt].i);
             /* Add phase noise if enabled */
             if (pdu_bit_map & 0x1) {
-              phase_noise(ts, &rxdata[aa_rx][i].r,
-                          &rxdata[aa_rx][i].i);
+              phase_noise(ts, &rxdata[aa_rx][slotSampCnt].r,
+                          &rxdata[aa_rx][slotSampCnt].i);
             }
           }
+          slotSampCnt++;
         }
 
         nr_ue_dcireq(&dcireq); //to be replaced with function pointer later
         nr_ue_scheduled_response(&scheduled_response);
 
         int16_t *pdcchLlr = NULL;
-        c16_t *pdsch_ch_estiamtes = NULL;
-        c16_t *pdsch_dl_ch_est_ext = NULL;
-        c16_t *rxdataF_ext = NULL;
-        c16_t *rxdataF_comp = NULL;
-        c16_t *dl_ch_mag = NULL;
-        c16_t *dl_ch_magb = NULL;
-        c16_t *dl_ch_magr = NULL;
-        c16_t *ptrs_phase = NULL;
-        int32_t *ptrs_re = NULL;
+        c16_t (*pdsch_ch_estiamtes)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
+          [UE->frame_parms.nb_antennas_rx][UE->frame_parms.ofdm_symbol_size] = NULL;
+        c16_t (*pdsch_dl_ch_est_ext)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
+          [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs] = NULL;
+        c16_t (*rxdataF_ext)[NR_SYMBOLS_PER_SLOT][UE->frame_parms.nb_antennas_rx]
+          [phy_data.dlsch[0].dlsch_config.number_rbs] = NULL;
+        c16_t (*rxdataF_comp)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
+          [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs] = NULL;
+        c16_t (*dl_ch_mag)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
+          [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs] = NULL;
+        c16_t (*dl_ch_magb)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
+          [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs] = NULL;
+        c16_t (*dl_ch_magr)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
+          [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs] = NULL;
+        c16_t (*ptrs_phase)[NR_SYMBOLS_PER_SLOT][UE->frame_parms.nb_antennas_rx] = NULL;
+        int32_t (*ptrs_re)[NR_SYMBOLS_PER_SLOT][UE->frame_parms.nb_antennas_rx] = NULL;
         nr_pdcch_slot_init(&phy_data, UE);
         nr_pdsch_slot_init(&phy_data, UE);
+        int sampleOffset = 0;
         for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
+          __attribute__ ((aligned(32))) c16_t rxdataT[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
           __attribute__ ((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][frame_parms->ofdm_symbol_size];
           /* OFDM Demodulation */
+          for (int aarx = 0; aarx < UE->frame_parms.nb_antennas_rx; aarx++) {
+            const int samplesPrefix = (symbol % (0x7 << UE->frame_parms.numerology_index)) ? UE->frame_parms.nb_prefix_samples : UE->frame_parms.nb_prefix_samples0;
+            memcpy(rxdataT[aarx],
+                  &rxdata[aarx][sampleOffset + samplesPrefix],
+                  sizeof(c16_t)*UE->frame_parms.ofdm_symbol_size);
+            if (aarx == 0) sampleOffset += (samplesPrefix + UE->frame_parms.ofdm_symbol_size);
+          }
           nr_symbol_fep(UE,
                         slot,
                         symbol,
                         rxdata,
                         rxdataF);
+          if (symbol == 0) {
+            for (int i=0; i<UE->frame_parms.ofdm_symbol_size; i++) printf("%d: %d.%d\n", i, rxdataT[0][i].r, rxdataT[0][i].i);
+            //for (int i=0; i<UE->frame_parms.ofdm_symbol_size; i++) printf("%d: %d.%d\n", i, rxdataF[0][i].r, rxdataF[0][i].i);
+          }
 
           /* Process PDCCH */
           const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data.phy_pdcch_config;
           const int nb_symb_pdcch = get_max_pdcch_symb(phy_pdcch_config);
           const int start_symb_pdcch = get_min_pdcch_start_symb(phy_pdcch_config);
           const int last_symb_pdcch = start_symb_pdcch + nb_symb_pdcch - 1;
-          const int pdcchLlrSize = get_llr_length_pdcch(phy_pdcch_config) * nb_symb_pdcch * 9 * 2;
+          const int pdcchLlrSize = get_pdcch_max_rbs(phy_pdcch_config) * nb_symb_pdcch * 9 * 2;
           if (!pdcchLlr) pdcchLlr = malloc16_clear(sizeof(*pdcchLlr) * pdcchLlrSize * phy_pdcch_config->nb_search_space);
-          nr_pdcch_generate_llr(UE, &UE_proc, symbol, &phy_data, pdcchLlrSize, rxdataF, pdcchLlr);
-          if (last_symb_pdcch == symbol) {
+          if ((symbol >= start_symb_pdcch) &&
+              (symbol < last_symb_pdcch)) {
+            nr_pdcch_generate_llr(UE, &UE_proc, symbol, &phy_data, pdcchLlrSize, rxdataF, pdcchLlr);
+          } else if (symbol == last_symb_pdcch) {
+            nr_pdcch_generate_llr(UE, &UE_proc, symbol, &phy_data, pdcchLlrSize, rxdataF, pdcchLlr);
             nr_pdcch_dci_indication(&UE_proc, pdcchLlrSize, UE, &phy_data, pdcchLlr);
             free(pdcchLlr); pdcchLlr = NULL;
           }
@@ -1219,15 +1244,15 @@ int main(int argc, char **argv)
           if (!ptrs_re) ptrs_re = malloc16_clear(sizeof(*ptrs_re) * NR_SYMBOLS_PER_SLOT * UE->frame_parms.nb_antennas_rx);
           if ((symbol < last_pdsch_symbol) &&
               (symbol >= first_pdsch_symbol)) {
-            nr_pdsch_generate_channel_estimates(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, pdsch_ch_estiamtes);
-            nr_generate_pdsch_extracted_rxdataF(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, rxdataF_ext);
+            nr_pdsch_generate_channel_estimates(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, (*pdsch_ch_estiamtes)[symbol]);
+            nr_generate_pdsch_extracted_rxdataF(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, (*rxdataF_ext)[symbol]);
           } else if (symbol == last_pdsch_symbol) {
-            nr_pdsch_generate_channel_estimates(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, pdsch_ch_estiamtes);
-            nr_generate_pdsch_extracted_rxdataF(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, rxdataF_ext);
-            nr_ue_symb_data_t param = {.dl_ch_mag = dl_ch_mag, .dl_ch_magb = dl_ch_magb, .dl_ch_magr = dl_ch_magr,
-                                      .pdsch_dl_ch_est_ext = pdsch_dl_ch_est_ext, .pdsch_dl_ch_estimates = pdsch_ch_estiamtes,
-                                      .rxdataF_comp = rxdataF_comp, .rxdataF_ext = rxdataF_ext,
-                                      .ptrs_phase_per_slot = ptrs_phase, .ptrs_re_per_slot = ptrs_re,
+            nr_pdsch_generate_channel_estimates(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, (*pdsch_ch_estiamtes)[symbol]);
+            nr_generate_pdsch_extracted_rxdataF(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF, (*rxdataF_ext)[symbol]);
+            nr_ue_symb_data_t param = {.dl_ch_mag = (c16_t *)dl_ch_mag, .dl_ch_magb = (c16_t *)dl_ch_magb, .dl_ch_magr = (c16_t *)dl_ch_magr,
+                                      .pdsch_dl_ch_est_ext = (c16_t *)pdsch_dl_ch_est_ext, .pdsch_dl_ch_estimates = (c16_t *)pdsch_ch_estiamtes,
+                                      .rxdataF_comp = (c16_t *)rxdataF_comp, .rxdataF_ext = (c16_t *)rxdataF_ext,
+                                      .ptrs_phase_per_slot = (c16_t *)ptrs_phase, .ptrs_re_per_slot = (int32_t *)ptrs_re,
                                       .symbol = symbol, .UE = UE, .proc = &UE_proc};
             nr_ue_pdsch_procedures((void *)&param);
             free(rxdataF_ext); rxdataF_ext = NULL;

@@ -49,10 +49,10 @@
 
 int16_t get_kRE_ref(uint8_t dmrs_antenna_port, uint8_t pusch_dmrs_type, uint8_t resourceElementOffset);
 
-int get_ptrs_symb_idx(const int  duration_in_symbols,
-                       const int start_symbol,
-                       const int L_ptrs,
-                       const int ul_dmrs_symb_pos);
+int get_ptrs_symb_idx(const int duration_in_symbols,
+                      const int start_symbol,
+                      const int L_ptrs,
+                      const int ul_dmrs_symb_pos);
 
 uint8_t is_ptrs_subcarrier(uint16_t k,
                            uint16_t n_rnti,

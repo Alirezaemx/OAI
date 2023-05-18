@@ -621,12 +621,12 @@ void nr_generate_csi_rs(const NR_DL_FRAME_PARMS *frame_parms,
 
             // ZP CSI RS
             if (csi_params->csi_type == 2) {
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+(2*dataF_offset)] = 0;
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+1+(2*dataF_offset)] = 0;
+              dataF[p][((l*frame_parms->ofdm_symbol_size + k)<<1)+dataF_offset].r = 0;
+              dataF[p][((l*frame_parms->ofdm_symbol_size + k)<<1)+dataF_offset].i = 0;
             }
             else {
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+(2*dataF_offset)] = (beta*wt*wf*mod_csi[l][mprime<<1]) >> 15;
-              ((int16_t*)dataF[p])[((l*frame_parms->ofdm_symbol_size + k)<<1)+1+(2*dataF_offset)] = (beta*wt*wf*mod_csi[l][(mprime<<1) + 1]) >> 15;
+              dataF[p][((l*frame_parms->ofdm_symbol_size + k)<<1)+dataF_offset].r = (beta*wt*wf*mod_csi[l][mprime<<1]) >> 15;
+              dataF[p][((l*frame_parms->ofdm_symbol_size + k)<<1)+dataF_offset].i = (beta*wt*wf*mod_csi[l][(mprime<<1) + 1]) >> 15;
             }
 #ifdef NR_CSIRS_DEBUG
             printf("l,k (%d,%d)  seq. index %d \t port %d \t (%d,%d)\n",l,k,mprime,p+3000,

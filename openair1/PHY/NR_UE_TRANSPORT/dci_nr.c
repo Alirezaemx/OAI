@@ -691,6 +691,7 @@ void nr_rx_pdcch_symbol(const PHY_VARS_NR_UE *ue,
                               pdcch_dl_ch_estimates,
                               rxdataF);
 
+  //for (int i=0; i<pdcch_est_size; i++) printf("%d: %d.%d\n", i, ((int16_t *)&pdcch_dl_ch_estimates[0])[i*2], ((int16_t *)&pdcch_dl_ch_estimates[0])[i*2+1]);
   const int32_t rx_size = ((4 * fp->N_RB_DL * 12 + 31) >> 5) << 5;
   __attribute__ ((aligned(32))) int32_t rxdataF_ext[fp->nb_antennas_rx][rx_size];
   __attribute__ ((aligned(32))) int32_t rxdataF_comp[fp->nb_antennas_rx][rx_size];
@@ -834,7 +835,7 @@ int nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
   int dci_cnt = 0;
 
   for (int ss_idx = 0; ss_idx < phy_pdcch_config->nb_search_space; ss_idx++) {
-    dci_cnt += nr_pdcch_decode(proc, ss_idx, (const nr_phy_data_t *)phy_data, llrSize, llr[ss_idx], ue, &dci_ind);
+    dci_cnt += nr_pdcch_decode(proc, ss_idx, (const nr_phy_data_t *)phy_data, llrSize, &llr[ss_idx * llrSize], ue, &dci_ind);
   }
 
   /* Send to MAC */
@@ -1045,7 +1046,7 @@ static uint16_t nr_dci_false_detection(const int16_t *soft_in,
 
 uint8_t nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
                                   const UE_nr_rxtx_proc_t *proc,
-                                  const int16_t *pdcch_e_rx,
+                                  int16_t *pdcch_e_rx,
                                   const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15,
                                   int *dci_thres,
                                   fapi_nr_dci_indication_t *dci_ind)

@@ -44,6 +44,7 @@
 #include "PHY/NR_REFSIG/pss_nr.h"
 #include "PHY/NR_REFSIG/sss_nr.h"
 #include "PHY/NR_REFSIG/refsig_defs_ue.h"
+#include "openair1/PHY/NR_UE_TRANSPORT/nr_transport_proto_ue.h"
 
 extern openair0_config_t openair0_cfg[];
 //static  nfapi_nr_config_request_t config_t;
@@ -565,7 +566,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
       const int nb_symb_pdcch = get_max_pdcch_symb(phy_pdcch_config);
       const int start_symb_pdcch = get_min_pdcch_start_symb(phy_pdcch_config);
       const int last_symb_pdcch = start_symb_pdcch + nb_symb_pdcch - 1;
-      const int pdcchLlrSize = get_llr_length_pdcch(phy_pdcch_config) * nb_symb_pdcch * 9 * 2;
+      const int pdcchLlrSize = get_pdcch_max_rbs(phy_pdcch_config) * nb_symb_pdcch * 9 * 2;
       if (!pdcchLlr) pdcchLlr = malloc16_clear(sizeof(*pdcchLlr) * pdcchLlrSize * phy_pdcch_config->nb_search_space);
       nr_pdcch_generate_llr(ue, proc, symbol, &phy_data, pdcchLlrSize, rxdataF, pdcchLlr);
       if (last_symb_pdcch == symbol) {

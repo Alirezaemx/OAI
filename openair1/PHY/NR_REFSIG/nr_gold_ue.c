@@ -78,9 +78,9 @@ void nr_gold_pdcch(PHY_VARS_NR_UE* ue,
 void nr_gold_pdsch(const int nscid,
                    const unsigned int nid,
                    PHY_VARS_NR_UE* ue) {
-  const unsigned int x1 = 0;
+  unsigned int x1 = 0;
   const int pdsch_dmrs_init_length =  ((ue->frame_parms.N_RB_DL*12)>>5)+1;
-  int x2 = 0;
+  unsigned int x2 = 0;
   int x2tmp0 = 0;
   uint8_t reset;
 
