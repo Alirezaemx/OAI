@@ -51,7 +51,7 @@
 
 /** \brief This function initialises structures for DLSCH at UE
 */
-void nr_ue_dlsch_init(NR_UE_DLSCH_t *dlsch_list, int num_dlsch, uint8_t max_ldpc_iterations);
+void nr_ue_dlsch_init(NR_UE_DLSCH_t dlsch_list[2], int num_dlsch, uint8_t max_ldpc_iterations);
 
 /** \brief This function computes the LLRs for ML (max-logsum approximation) dual-stream QPSK/QPSK reception.
     @param stream0_in Input from channel compensated (MR combined) stream 0

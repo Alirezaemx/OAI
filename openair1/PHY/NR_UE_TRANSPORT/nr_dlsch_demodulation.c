@@ -644,13 +644,13 @@ void nr_channel_compensation(const int length,
   }
 
   const int nb_rb_0 = length / 12 + ((length % 12) ? 1 : 0);
+  const __m128i *dl_ch128      = (__m128i *)dl_ch_estimates_ext;
+  const __m128i *rxdataF128    = (__m128i *)rxdataF_ext;
+  __m128i *dl_ch_mag128  = (__m128i *)dl_ch_mag;
+  __m128i *dl_ch_mag128b = (__m128i *)dl_ch_magb;
+  __m128i *dl_ch_mag128r = (__m128i *)dl_ch_magr;
+  __m128i *rxdataF_comp128     = (__m128i *)rxdataF_comp;
   for (int rb = 0; rb < nb_rb_0; rb++) {
-    const __m128i *dl_ch128      = (__m128i *)dl_ch_estimates_ext;
-    const __m128i *rxdataF128    = (__m128i *)rxdataF_ext;
-    __m128i *dl_ch_mag128  = (__m128i *)dl_ch_mag;
-    __m128i *dl_ch_mag128b = (__m128i *)dl_ch_magb;
-    __m128i *dl_ch_mag128r = (__m128i *)dl_ch_magr;
-    __m128i *rxdataF_comp128     = (__m128i *)rxdataF_comp;
 
     __m128i mmtmpD0;
     __m128i mmtmpD1;

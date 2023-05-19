@@ -382,9 +382,11 @@ void nr_pdcch_slot_init(const nr_phy_data_t *phyData,
   }
 }
 /* To be called every slot after PDSCH scheduled */
-void nr_pdsch_slot_init(const nr_phy_data_t *phyData,
+void nr_pdsch_slot_init(nr_phy_data_t *phyData,
                         PHY_VARS_NR_UE *ue)
 {
+  /* Initialize DLSCH struct */
+  nr_ue_dlsch_init(phyData->dlsch, NR_MAX_NB_LAYERS>4 ? 2:1, ue->max_ldpc_iterations);
   /* checking if re-initialization of scrambling IDs is needed */
   const NR_UE_DLSCH_t *dlsch0 = &phyData->dlsch[0];
   const int scramblingId     = dlsch0->dlsch_config.dlDmrsScramblingId;
@@ -484,13 +486,13 @@ void nr_extract_data_res(const NR_DL_FRAME_PARMS *frame_parms,
       }
     }
   } else {
-    if (pdschStartRb + pdschNbRb * NR_NB_SC_PER_RB <= frame_parms->ofdm_symbol_size) {
-      memcpy(rxdataF_ext, &rxdataF[startRe], pdschNbRb * NR_NB_SC_PER_RB * sizeof(int32_t));
+    if (startRe + pdschNbRb * NR_NB_SC_PER_RB <= frame_parms->ofdm_symbol_size) {
+      memcpy(rxdataF_ext, &rxdataF[startRe], pdschNbRb * NR_NB_SC_PER_RB * sizeof(c16_t));
     } else {
       const int negLength = frame_parms->ofdm_symbol_size - startRe;
       const int posLength = pdschNbRb * NR_NB_SC_PER_RB - negLength;
-      memcpy(rxdataF_ext, &rxdataF[startRe], negLength * sizeof(int32_t));
-      memcpy(&rxdataF_ext[negLength], rxdataF, posLength * sizeof(int32_t));
+      memcpy(rxdataF_ext, &rxdataF[startRe], negLength * sizeof(c16_t));
+      memcpy(&rxdataF_ext[negLength], rxdataF, posLength * sizeof(c16_t));
     }
   }
 }
@@ -551,7 +553,7 @@ void nr_extract_pdsch_chest_res(const NR_DL_FRAME_PARMS *frame_parms,
       }
     }
   } else {
-    memcpy(dl_ch_est_ext, dl_ch_est, pdschNbRb * NR_NB_SC_PER_RB * sizeof(int32_t));
+    memcpy(dl_ch_est_ext, dl_ch_est, pdschNbRb * NR_NB_SC_PER_RB * sizeof(c16_t));
   }
 }
 
@@ -803,6 +805,7 @@ void nr_pdsch_comp_out(void *parms)
                                 *dl_ch_magb,
                                 *dl_ch_magr,
                                 *rxdataF_comp);
+
   if (ue->frame_parms.nb_antennas_rx > 1) {
     const int nb_re_pdsch = get_nb_re_pdsch_symbol(msg->symbol, dlsch);
     nr_dlsch_detection_mrc(dlsch->Nl, ue->frame_parms.nb_antennas_rx, dlsch->dlsch_config.number_rbs, nb_re_pdsch, *rxdataF_comp, *dl_ch_mag, *dl_ch_magb, *dl_ch_magr);
@@ -1087,7 +1090,7 @@ void pdsch_llr_generation(const NR_DL_FRAME_PARMS *frame_parms,
       if (aarx == 0) dl_valid_re -= ptrs_re[0][symbol];
     }
   }
-  
+
   nr_dlsch_llr(frame_parms,
                dlsch,
                dl_valid_re,
@@ -1103,7 +1106,7 @@ void pdsch_llr_generation_Tpool(void *parms)
 {
   nr_ue_symb_data_t *msg = (nr_ue_symb_data_t *)parms;
   const PHY_VARS_NR_UE *ue = msg->UE;
-  const NR_UE_DLSCH_t *dlsch = &msg->phy_data->dlsch[0];
+  const NR_UE_DLSCH_t *dlsch = msg->dlsch;
   const c16_t (*ptrs_phase)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT] =
     (const c16_t (*)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT])msg->ptrs_phase_per_slot;
   const int32_t (*ptrs_re)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT] =
@@ -1171,6 +1174,7 @@ bool pdsch_post_processing(PHY_VARS_NR_UE *ue,
     msg->symbol = j;
     msg->UE = ue;
     msg->proc = proc;
+    msg->dlsch = dlsch;
     msg->layer_llr = layer_llr + j*NR_MAX_NB_LAYERS*llr_per_symbol;
     msg->ptrs_phase_per_slot = (c16_t *)ptrs_phase;
     msg->ptrs_re_per_slot = (int32_t *)ptrs_re;
@@ -1246,12 +1250,12 @@ bool nr_ue_pdsch_procedures(void *parms)
   const UE_nr_rxtx_proc_t *proc = msg->proc;
   NR_UE_DLSCH_t *dlsch = &msg->phy_data->dlsch[0];
 
-  c16_t (*dl_ch_est)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+  c16_t (*dl_ch_est)[NR_SYMBOLS_PER_SLOT][dlsch->Nl][ue->frame_parms.nb_antennas_rx]
                     [ue->frame_parms.ofdm_symbol_size] =
-    (c16_t (*)[dlsch->Nl][ue->frame_parms.nb_antennas_rx]
+    (c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl][ue->frame_parms.nb_antennas_rx]
               [ue->frame_parms.ofdm_symbol_size])msg->pdsch_dl_ch_estimates;
 
-  nr_pdsch_estimates_time_avg(dlsch, &ue->frame_parms, dl_ch_est);
+  nr_pdsch_estimates_time_avg(dlsch, &ue->frame_parms, *dl_ch_est);
   /* set PTRS bitmap */
   if((dlsch->dlsch_config.pduBitmap & 0x1) && (dlsch->rnti_type == _C_RNTI_)) {
     msg->phy_data->dlsch[0].ptrs_symbols = get_ptrs_symb_idx(dlsch->dlsch_config.number_symbols,
@@ -1267,18 +1271,18 @@ bool nr_ue_pdsch_procedures(void *parms)
        symbol++) {
     notifiedFIFO_elt_t *newElt = newNotifiedFIFO_elt(sizeof(nr_ue_symb_data_t), proc->nr_slot_tx, &nf, nr_pdsch_comp_out);
     nr_ue_symb_data_t *symbMsg = (nr_ue_symb_data_t *) NotifiedFifoData(newElt);
-    const int symbBlockSize    = dlsch->Nl * ue->frame_parms.nb_antennas_rx * ue->frame_parms.ofdm_symbol_size;
     const int symbBlockSizeExt = dlsch->Nl * ue->frame_parms.nb_antennas_rx * (dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB);
-    msg->UE                    = symbMsg->UE;
-    msg->proc                  = symbMsg->proc;
-    msg->symbol                = symbol;
-    msg->pdsch_dl_ch_estimates = symbMsg->pdsch_dl_ch_estimates + (symbol * symbBlockSize);
-    msg->pdsch_dl_ch_est_ext   = symbMsg->pdsch_dl_ch_est_ext + (symbol * symbBlockSizeExt);
-    msg->rxdataF_ext           = symbMsg->rxdataF_ext + (symbol * symbBlockSizeExt);
-    msg->rxdataF_comp          = symbMsg->rxdataF_comp + (symbol * symbBlockSizeExt);
-    msg->dl_ch_mag             = symbMsg->dl_ch_mag + (symbol * symbBlockSizeExt);
-    msg->dl_ch_magb            = symbMsg->dl_ch_magb + (symbol * symbBlockSizeExt);
-    msg->dl_ch_magr            = symbMsg->dl_ch_magr + (symbol * symbBlockSizeExt);
+    symbMsg->UE                    = msg->UE;
+    symbMsg->proc                  = msg->proc;
+    symbMsg->symbol                = symbol;
+    symbMsg->phy_data              = msg->phy_data;
+    symbMsg->pdsch_dl_ch_estimates = msg->pdsch_dl_ch_estimates;
+    symbMsg->pdsch_dl_ch_est_ext   = msg->pdsch_dl_ch_est_ext + (symbol * symbBlockSizeExt);
+    symbMsg->rxdataF_ext           = msg->rxdataF_ext + (symbol * symbBlockSizeExt);
+    symbMsg->rxdataF_comp          = msg->rxdataF_comp + (symbol * symbBlockSizeExt);
+    symbMsg->dl_ch_mag             = msg->dl_ch_mag + (symbol * symbBlockSizeExt);
+    symbMsg->dl_ch_magb            = msg->dl_ch_magb + (symbol * symbBlockSizeExt);
+    symbMsg->dl_ch_magr            = msg->dl_ch_magr + (symbol * symbBlockSizeExt);
     pushTpool(&(get_nrUE_params()->Tpool), newElt);
   }
 

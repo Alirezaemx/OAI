@@ -555,7 +555,6 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
     int32_t (*ptrs_re)[NR_SYMBOLS_PER_SLOT][ue->frame_parms.nb_antennas_rx] = NULL;
     nr_pdcch_slot_init(&phy_data, ue);
     nr_pdsch_slot_init(&phy_data, ue);
-    nr_ue_dlsch_init(phy_data.dlsch, 1, ue->max_ldpc_iterations);
 
     for (int symbol = 0; symbol < NR_SYMBOLS_PER_SLOT; symbol++) {
       __attribute__ ((aligned(32))) c16_t rxdataF[fp->nb_antennas_rx][fp->ofdm_symbol_size];

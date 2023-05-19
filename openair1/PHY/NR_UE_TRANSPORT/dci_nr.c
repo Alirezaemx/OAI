@@ -761,8 +761,6 @@ int nr_pdcch_decode(const UE_nr_rxtx_proc_t *proc,
                     PHY_VARS_NR_UE *ue,
                     fapi_nr_dci_indication_t *dci_ind)
 {
-  const int frame_rx = proc->frame_rx;
-  const int nr_slot_rx = proc->nr_slot_rx;
   const NR_UE_PDCCH_CONFIG *phy_pdcch_config = &phy_data->phy_pdcch_config;
 
   const fapi_nr_dl_config_dci_dl_pdu_rel15_t *rel15 = &phy_pdcch_config->pdcch_config[ss_idx];
@@ -789,20 +787,7 @@ int nr_pdcch_decode(const UE_nr_rxtx_proc_t *proc,
                                     rel15->CCE,
                                     rel15->L);
 
-  const int dci_cnt = nr_dci_decoding_procedure(ue, proc, pdcch_e_rx, rel15, &ue->dci_thres, dci_ind);
-
-  for (int i = 0; i < dci_cnt; i++) {
-    LOG_D(PHY,"[UE  %d] AbsSubFrame %d.%d: DCI %i of %d total DCIs found --> rnti %x : format %d\n",
-          ue->Mod_id,frame_rx%1024,nr_slot_rx,
-          i + 1,
-          dci_cnt,
-          dci_ind->dci_list[i].rnti,
-          dci_ind->dci_list[i].dci_format);
-  }
-
-  dci_ind->number_of_dcis += dci_cnt;
-
-  return dci_cnt;
+  return nr_dci_decoding_procedure(ue, proc, pdcch_e_rx, rel15, &ue->dci_thres, dci_ind);
 }
 
 /* Generates PDCCH LLRs from received symbol for each Search-Space */
@@ -835,7 +820,17 @@ int nr_pdcch_dci_indication(const UE_nr_rxtx_proc_t *proc,
   int dci_cnt = 0;
 
   for (int ss_idx = 0; ss_idx < phy_pdcch_config->nb_search_space; ss_idx++) {
-    dci_cnt += nr_pdcch_decode(proc, ss_idx, (const nr_phy_data_t *)phy_data, llrSize, &llr[ss_idx * llrSize], ue, &dci_ind);
+    dci_cnt = nr_pdcch_decode(proc, ss_idx, (const nr_phy_data_t *)phy_data, llrSize, &llr[ss_idx * llrSize], ue, &dci_ind);
+  }
+
+  for (int i = 0; i < dci_cnt; i++) {
+    LOG_D(PHY,"Frame.slot: %d.%d: DCI %i of %d total DCIs found --> rnti %x : format %d\n",
+          proc->frame_rx,
+          proc->nr_slot_rx,
+          i + 1,
+          dci_cnt,
+          dci_ind.dci_list[i].rnti,
+          dci_ind.dci_list[i].dci_format);
   }
 
   /* Send to MAC */
@@ -1057,8 +1052,8 @@ uint8_t nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
   int e_rx_cand_idx = 0;
 
   for (int j=0;j<rel15->number_of_candidates;j++) {
-    int CCEind = rel15->CCE[j];
-    int L = rel15->L[j];
+    const int CCEind = rel15->CCE[j];
+    const int L = rel15->L[j];
 
     // Loop over possible DCI lengths
     
@@ -1074,7 +1069,7 @@ uint8_t nr_dci_decoding_procedure(const PHY_VARS_NR_UE *ue,
         }
       }
       if (dci_found==1) continue;
-      int dci_length = rel15->dci_length_options[k];
+      const int dci_length = rel15->dci_length_options[k];
       uint64_t dci_estimation[2]= {0};
 
       LOG_D(PHY, "(%i.%i) Trying DCI candidate %d of %d number of candidates, CCE %d (%d), L %d, length %d, format %s\n",

@@ -191,7 +191,7 @@ bool nr_ue_pdsch_procedures(void *parms);
 void nr_pdcch_slot_init(const nr_phy_data_t *phyData,
                         PHY_VARS_NR_UE *ue);
 
-void nr_pdsch_slot_init(const nr_phy_data_t *phyData,
+void nr_pdsch_slot_init(nr_phy_data_t *phyData,
                         PHY_VARS_NR_UE *ue);
 
 void nr_ue_csi_rs_symbol_procedures(const PHY_VARS_NR_UE *ue,

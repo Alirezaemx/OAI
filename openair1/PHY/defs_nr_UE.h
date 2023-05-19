@@ -680,6 +680,7 @@ typedef struct nr_ue_symb_data_s {
   int symbol;
   c16_t *rxdataF_ext;
   nr_phy_data_t *phy_data;
+  NR_UE_DLSCH_t *dlsch;
   c16_t *ptrs_phase_per_slot;
   int32_t *ptrs_re_per_slot;
   c16_t *rxdataF_comp;
