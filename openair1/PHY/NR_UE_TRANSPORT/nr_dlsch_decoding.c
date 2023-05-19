@@ -158,41 +158,17 @@ void nr_processDLSegment(void* arg) {
   NR_UE_DLSCH_t *dlsch = rdata->dlsch;
   NR_DL_UE_HARQ_t *harq_process= rdata->harq_process;
   t_nrLDPC_dec_params *p_decoderParms = &rdata->decoderParms;
-  int length_dec;
-  int no_iteration_ldpc;
-  int Kr;
-  int K_bits_F;
-  uint8_t crc_type;
-  int i;
-  int j;
-  int r = rdata->segment_r;
-  int A = rdata->A;
-  int E = rdata->E;
-  int Qm = rdata->Qm;
-  //int rv_index = rdata->rv_index;
-  int r_offset = rdata->r_offset;
-  uint8_t kc = rdata->Kc;
-  uint32_t Tbslbrm = rdata->Tbslbrm;
-  short* dlsch_llr = rdata->dlsch_llr;
   rdata->decodeIterations = dlsch->max_ldpc_iterations + 1;
-  int8_t llrProcBuf[OAI_UL_LDPC_MAX_NUM_LLR] __attribute__((aligned(32)));
-  int16_t  z [68*384 + 16] __attribute__ ((aligned(16)));
-  int8_t   l [68*384 + 16] __attribute__ ((aligned(16)));
 
-  __m128i *pv = (__m128i*)&z;
-  __m128i *pl = (__m128i*)&l;
-
-  Kr = harq_process->K;
-  K_bits_F = Kr-harq_process->F;
-
-  t_nrLDPC_time_stats procTime = {0};
-
-
-
+  const int Kr = harq_process->K;
   start_meas(&rdata->ts_deinterleave);
 
   //VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_DEINTERLEAVING, VCD_FUNCTION_IN);
+  const int E = rdata->E;
+  const int Qm = rdata->Qm;
+  const int r_offset = rdata->r_offset;
   int16_t w[E];
+  short* dlsch_llr = rdata->dlsch_llr;
   nr_deinterleaving_ldpc(E,
                          Qm,
                          w, // [hna] w is e
@@ -212,6 +188,8 @@ void nr_processDLSegment(void* arg) {
         harq_process->round); */
   //VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_RATE_MATCHING, VCD_FUNCTION_IN);
 
+  const int r = rdata->segment_r;
+  const uint32_t Tbslbrm = rdata->Tbslbrm;
   if (nr_rate_matching_ldpc_rx(Tbslbrm,
                                p_decoderParms->BG,
                                p_decoderParms->Z,
@@ -240,6 +218,9 @@ void nr_processDLSegment(void* arg) {
     LOG_D(PHY,"\n");
   }
 
+  int length_dec;
+  int crc_type;
+  const int A = rdata->A;
   if (harq_process->C == 1) {
     if (A > NR_MAX_PDSCH_TBS)
       crc_type = CRC24_A;
@@ -253,9 +234,14 @@ void nr_processDLSegment(void* arg) {
   }
 
   {
+    const int kc = rdata->Kc;
+    const int K_bits_F = Kr-harq_process->F;
+    __attribute__ ((aligned(16))) int16_t  z [68*384 + 16] = {0};
+    __attribute__ ((aligned(16))) int8_t   l [68*384 + 16] = {0};
+
+    __m128i *pv = (__m128i*)&z;
+    __m128i *pl = (__m128i*)&l;
     start_meas(&rdata->ts_ldpc_decode);
-    //set first 2*Z_c bits to zeros
-    memset(&z[0],0,2*harq_process->Z*sizeof(int16_t));
     //set Filler bits
     memset((&z[0]+K_bits_F),127,harq_process->F*sizeof(int16_t));
     //Move coded bits before filler bits
@@ -264,17 +250,19 @@ void nr_processDLSegment(void* arg) {
     memcpy((&z[0]+Kr),harq_process->d[r]+(Kr-2*harq_process->Z),(kc*harq_process->Z-Kr)*sizeof(int16_t));
 
     //Saturate coded bits before decoding into 8 bits values
-    for (i=0, j=0; j < ((kc*harq_process->Z)>>4)+1;  i+=2, j++) {
+    for (int i=0, j=0; j < ((kc*harq_process->Z)>>4)+1;  i+=2, j++) {
       pl[j] = _mm_packs_epi16(pv[i],pv[i+1]);
     }
 
     //VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_LDPC, VCD_FUNCTION_IN);
     p_decoderParms->block_length=length_dec;
+    int8_t llrProcBuf[OAI_UL_LDPC_MAX_NUM_LLR] __attribute__((aligned(32)));
     nrLDPC_initcall(p_decoderParms, (int8_t*)&pl[0], llrProcBuf);
-    no_iteration_ldpc = nrLDPC_decoder(p_decoderParms,
-                                       (int8_t *)&pl[0],
-                                       llrProcBuf,
-                                       &procTime);
+    t_nrLDPC_time_stats procTime = {0};
+    int no_iteration_ldpc = nrLDPC_decoder(p_decoderParms,
+                                           (int8_t *)&pl[0],
+                                           llrProcBuf,
+                                           &procTime);
     //VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_LDPC, VCD_FUNCTION_OUT);
 
     LOG_D(PHY,"no_iteration_ldpc = %d\n", no_iteration_ldpc);
@@ -284,7 +272,7 @@ void nr_processDLSegment(void* arg) {
       if (no_iteration_ldpc > dlsch->max_ldpc_iterations)
         no_iteration_ldpc = dlsch->max_ldpc_iterations;
     } else {
-      LOG_I(PHY,"%d.%d CRC NOT OK\n",rdata->proc->frame_rx,rdata->proc->nr_slot_rx);
+      LOG_D(PHY,"%d.%d CRC NOT OK\n",rdata->proc->frame_rx,rdata->proc->nr_slot_rx);
       no_iteration_ldpc = dlsch->max_ldpc_iterations + 1;
     }
 
@@ -294,9 +282,7 @@ void nr_processDLSegment(void* arg) {
 
     rdata->decodeIterations = no_iteration_ldpc;
 
-    for (int m=0; m < Kr>>3; m ++) {
-      harq_process->c[r][m]= (uint8_t) llrProcBuf[m];
-    }
+    memcpy(harq_process->c[r], llrProcBuf, Kr>>3);
 
     stop_meas(&rdata->ts_ldpc_decode);
   }
@@ -315,88 +301,40 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
                            uint8_t harq_pid,
                            int b_size,
                            uint8_t b[b_size]) {
-  uint32_t A,E;
-  uint32_t G;
-  uint32_t ret,offset;
-  uint32_t r,r_offset=0,Kr=8424,Kr_bytes;
-  t_nrLDPC_dec_params decParams;
-  t_nrLDPC_dec_params *p_decParams = &decParams;
-
-  if (!harq_process) {
-    LOG_E(PHY,"dlsch_decoding.c: NULL harq_process pointer\n");
-    return(dlsch->max_ldpc_iterations + 1);
-  }
+  DevAssert(harq_process != NULL);
+  DevAssert(dlsch_llr != NULL);
 
   // HARQ stats
   phy_vars_ue->dl_stats[harq_process->DLround]++;
   LOG_D(PHY,"Round %d RV idx %d\n",harq_process->DLround,dlsch->dlsch_config.rv);
-  uint8_t kc;
-  uint16_t nb_rb;// = 30;
-  uint8_t dmrs_Type = dlsch->dlsch_config.dmrsConfigType;
+  const int dmrs_Type = dlsch->dlsch_config.dmrsConfigType;
   AssertFatal(dmrs_Type == 0 || dmrs_Type == 1, "Illegal dmrs_type %d\n", dmrs_Type);
-  uint8_t nb_re_dmrs;
+  const int nb_re_dmrs = (dmrs_Type==NFAPI_NR_DMRS_TYPE1) ?
+                              6*dlsch->dlsch_config.n_dmrs_cdm_groups :
+                              4*dlsch->dlsch_config.n_dmrs_cdm_groups;
 
-  if (dmrs_Type==NFAPI_NR_DMRS_TYPE1) {
-    nb_re_dmrs = 6*dlsch->dlsch_config.n_dmrs_cdm_groups;
-  } else {
-    nb_re_dmrs = 4*dlsch->dlsch_config.n_dmrs_cdm_groups;
-  }
-
-  uint16_t dmrs_length = get_num_dmrs(dlsch->dlsch_config.dlDmrsSymbPos);
+  const int dmrs_length = get_num_dmrs(dlsch->dlsch_config.dlDmrsSymbPos);
   vcd_signal_dumper_dump_function_by_name(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_SEGMENTATION, VCD_FUNCTION_IN);
 
-  //NR_DL_UE_HARQ_t *harq_process = dlsch->harq_processes[0];
-  
-  int nbDecode = 0;
-  
-  if (!dlsch_llr) {
-    LOG_E(PHY,"dlsch_decoding.c: NULL dlsch_llr pointer\n");
-    return(dlsch->max_ldpc_iterations + 1);
-  }
-
-  if (!frame_parms) {
-    LOG_E(PHY,"dlsch_decoding.c: NULL frame_parms pointer\n");
-    return(dlsch->max_ldpc_iterations + 1);
-  }
-
-  /*if (nr_slot_rx> (frame_parms->slots_per_frame-1)) {
-    printf("dlsch_decoding.c: Illegal slot index %d\n",nr_slot_rx);
-    return(dlsch->max_ldpc_iterations + 1);
-  }*/
-  /*if (harq_process->harq_ack.ack != 2) {
-    LOG_D(PHY, "[UE %d] DLSCH @ SF%d : ACK bit is %d instead of DTX even before PDSCH is decoded!\n",
-        phy_vars_ue->Mod_id, nr_slot_rx, harq_process->harq_ack.ack);
-  }*/
-  //  nb_rb = dlsch->nb_rb;
-  /*
-  if (nb_rb > frame_parms->N_RB_DL) {
-    printf("dlsch_decoding.c: Illegal nb_rb %d\n",nb_rb);
-    return(max_ldpc_iterations + 1);
-    }*/
-  /*harq_pid = dlsch->current_harq_pid[proc->thread_id];
-  if (harq_pid >= 8) {
-    printf("dlsch_decoding.c: Illegal harq_pid %d\n",harq_pid);
-    return(max_ldpc_iterations + 1);
-  }
-  */
-  nb_rb = dlsch->dlsch_config.number_rbs;
-  A = dlsch->dlsch_config.TBS;
-  ret = dlsch->max_ldpc_iterations + 1;
-  dlsch->last_iteration_cnt = ret;
+  const int nb_rb = dlsch->dlsch_config.number_rbs;
+  const int A = dlsch->dlsch_config.TBS;
+  dlsch->last_iteration_cnt = dlsch->max_ldpc_iterations + 1;
   harq_process->G = nr_get_G(nb_rb, nb_symb_sch, nb_re_dmrs, dmrs_length, dlsch->dlsch_config.qamModOrder,dlsch->Nl);
-  G = harq_process->G;
 
   // target_code_rate is in 0.1 units
-  float Coderate = (float) dlsch->dlsch_config.targetCodeRate / 10240.0f;
+  const float Coderate = (float) dlsch->dlsch_config.targetCodeRate / 10240.0f;
 
   LOG_D(PHY,"%d.%d DLSCH Decoding, harq_pid %d TBS %d (%d) G %d nb_re_dmrs %d length dmrs %d mcs %d Nl %d nb_symb_sch %d nb_rb %d Qm %d Coderate %f\n",
-        frame,nr_slot_rx,harq_pid,A,A/8,G, nb_re_dmrs, dmrs_length, dlsch->dlsch_config.mcs, dlsch->Nl, nb_symb_sch, nb_rb, dlsch->dlsch_config.qamModOrder, Coderate);
+        frame,nr_slot_rx,harq_pid,A,A/8,harq_process->G, nb_re_dmrs, dmrs_length, dlsch->dlsch_config.mcs, dlsch->Nl, nb_symb_sch, nb_rb, dlsch->dlsch_config.qamModOrder, Coderate);
 
+  t_nrLDPC_dec_params decParams;
+
+  int kc;
   if ((A <=292) || ((A <= NR_MAX_PDSCH_TBS) && (Coderate <= 0.6667)) || Coderate <= 0.25) {
-    p_decParams->BG = 2;
+    decParams.BG = 2;
     kc = 52;
   } else {
-    p_decParams->BG = 1;
+    decParams.BG = 1;
     kc = 68;
   }
 
@@ -414,7 +352,7 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
                     &harq_process->K,
                     &harq_process->Z, // [hna] Z is Zc
                     &harq_process->F,
-                    p_decParams->BG);
+                    decParams.BG);
 
     if (harq_process->C>MAX_NUM_NR_DLSCH_SEGMENTS_PER_LAYER*dlsch->Nl) {
       LOG_E(PHY,"nr_segmentation.c: too many segments %d, B %d\n",harq_process->C,harq_process->B);
@@ -426,12 +364,9 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
   }
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_SEGMENTATION, VCD_FUNCTION_OUT);
-  p_decParams->Z = harq_process->Z;
-  //printf("dlsch decoding nr segmentation Z %d\n", p_decParams->Z);
-  //printf("coderate %f kc %d \n", Coderate, kc);
-  p_decParams->numMaxIter = dlsch->max_ldpc_iterations;
-  p_decParams->outMode= 0;
-  r_offset = 0;
+  decParams.Z = harq_process->Z;
+  decParams.numMaxIter = dlsch->max_ldpc_iterations;
+  decParams.outMode= 0;
   uint16_t a_segments = MAX_NUM_NR_DLSCH_SEGMENTS_PER_LAYER*dlsch->Nl;  //number of segments to be allocated
 
   if (nb_rb != 273) {
@@ -439,23 +374,22 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
     a_segments = a_segments/273 +1;
   }
 
-  if (harq_process->C > a_segments) {
-    LOG_E(PHY,"Illegal harq_process->C %d > %d\n",harq_process->C,a_segments);
-    return((1+dlsch->max_ldpc_iterations));
-  }
+  DevAssert(harq_process->C <= a_segments);
 
   if (LOG_DEBUGFLAG(DEBUG_DLSCH_DECOD))
     LOG_I(PHY,"Segmentation: C %d, K %d\n",harq_process->C,harq_process->K);
 
-  Kr = harq_process->K; // [hna] overwrites this line "Kr = p_decParams->Z*kb"
-  Kr_bytes = Kr>>3;
-  offset = 0;
+  const int Kr_bytes = harq_process->K >> 3;
+  int offset = 0;
+  int r_offset = 0;
+  int nbDecode = 0;
   void (*nr_processDLSegment_ptr)(void*) = &nr_processDLSegment;
   notifiedFIFO_t nf;
   initNotifiedFIFO(&nf);
-  for (r=0; r<harq_process->C; r++) {
+  start_meas(&phy_vars_ue->dlsch_ldpc_whole);
+  for (int r=0; r<harq_process->C; r++) {
     //printf("start rx segment %d\n",r);
-    E = nr_get_E(G, harq_process->C, dlsch->dlsch_config.qamModOrder, dlsch->Nl, r);
+    const int E = nr_get_E(harq_process->G, harq_process->C, dlsch->dlsch_config.qamModOrder, dlsch->Nl, r);
     decParams.R = nr_get_R_ldpc_decoder(dlsch->dlsch_config.rv, E, decParams.BG, decParams.Z, &harq_process->llrLen, harq_process->DLround);
     union ldpcReqUnion id = {.s={dlsch->rnti,frame,nr_slot_rx,0,0}};
     notifiedFIFO_elt_t *req=newNotifiedFIFO_elt(sizeof(ldpcDecode_ue_t), id.p, &nf, nr_processDLSegment_ptr);
@@ -491,7 +425,7 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
     //////////////////////////////////////////////////////////////////////////////////////////
   }
   int num_seg_ok = 0;
-  for (r=0; r<nbDecode; r++) {
+  for (int r=0; r<nbDecode; r++) {
     notifiedFIFO_elt_t *req=pullTpool(&nf,  &get_nrUE_params()->Tpool);
     if (req == NULL)
       break; // Tpool has been stopped
@@ -503,8 +437,9 @@ uint32_t nr_dlsch_decoding(PHY_VARS_NR_UE *phy_vars_ue,
     if (stop)
       break;
   }
+  stop_meas(&phy_vars_ue->dlsch_ldpc_whole);
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_DLSCH_COMBINE_SEG, VCD_FUNCTION_OUT);
-  ret = dlsch->last_iteration_cnt;
-  return(ret);
+
+  return dlsch->last_iteration_cnt;
 }

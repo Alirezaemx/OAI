@@ -589,16 +589,17 @@ typedef struct {
   time_stats_t ulsch_interleaving_stats;
   time_stats_t ulsch_multiplexing_stats;
 
-  time_stats_t generic_stat;
-  time_stats_t generic_stat_bis[LTE_SLOTS_PER_SUBFRAME];
-  time_stats_t ue_front_end_stat;
-  time_stats_t ue_front_end_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t pdcch_procedures_stat;
   time_stats_t pdsch_procedures_stat;
-  time_stats_t pdsch_post_proc;
   time_stats_t pdsch_pre_proc;
+  time_stats_t pdsch_post_proc;
+  time_stats_t pdsch_comp_out;
+  time_stats_t pdsch_llr_gen;
+  time_stats_t pdsch_llr_demapping;
+  time_stats_t pdsch_mem_init;
   time_stats_t pdsch_procedures_per_slot_stat[LTE_SLOTS_PER_SUBFRAME];
   time_stats_t dlsch_procedures_stat;
+  time_stats_t dlsch_ldpc_whole;
 
   time_stats_t rx_pdsch_stats;
   time_stats_t ofdm_demod_stats;

@@ -1220,7 +1220,9 @@ int main(int argc, char **argv)
             }
           }
 
+          /* Process PDSCH */
           if (pdsch_state == SCHEDULED) {
+            start_meas(&UE->pdsch_mem_init);
             const int first_pdsch_symbol = phy_data.dlsch[0].dlsch_config.start_symbol;
             const int last_pdsch_symbol = phy_data.dlsch[0].dlsch_config.start_symbol +
                                           phy_data.dlsch[0].dlsch_config.number_symbols - 1;
@@ -1239,9 +1241,11 @@ int main(int argc, char **argv)
             if (!dl_ch_magr) dl_ch_magr = malloc16_clear(sizeof(c16_t) * ext_size);
             if (!ptrs_phase) ptrs_phase = malloc16_clear(sizeof(c16_t) * NR_SYMBOLS_PER_SLOT * UE->frame_parms.nb_antennas_rx);
             if (!ptrs_re) ptrs_re = malloc16_clear(sizeof(c16_t) * NR_SYMBOLS_PER_SLOT * UE->frame_parms.nb_antennas_rx);
+            stop_meas(&UE->pdsch_mem_init);
             if ((symbol < last_pdsch_symbol) &&
                 (symbol >= first_pdsch_symbol)) {
 
+              start_meas(&UE->pdsch_pre_proc);
               nr_pdsch_generate_channel_estimates(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF,
                 (*(c16_t (*)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
                 [UE->frame_parms.nb_antennas_rx][UE->frame_parms.ofdm_symbol_size])pdsch_ch_estiamtes)[symbol]);
@@ -1249,9 +1253,11 @@ int main(int argc, char **argv)
               nr_generate_pdsch_extracted_rxdataF(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF,
                 (*(c16_t (*)[NR_SYMBOLS_PER_SLOT]
                 [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs * NR_NB_SC_PER_RB])rxdataF_ext)[symbol]);
+              stop_meas(&UE->pdsch_pre_proc);
 
             } else if (symbol == last_pdsch_symbol) {
 
+              start_meas(&UE->pdsch_pre_proc);
               nr_pdsch_generate_channel_estimates(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF,
                 (*(c16_t (*)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
                 [UE->frame_parms.nb_antennas_rx][UE->frame_parms.ofdm_symbol_size])pdsch_ch_estiamtes)[symbol]);
@@ -1259,13 +1265,16 @@ int main(int argc, char **argv)
               nr_generate_pdsch_extracted_rxdataF(UE, &UE_proc, symbol, &phy_data.dlsch[0], rxdataF,
                 (*(c16_t (*)[NR_SYMBOLS_PER_SLOT]
                 [UE->frame_parms.nb_antennas_rx][phy_data.dlsch[0].dlsch_config.number_rbs * NR_NB_SC_PER_RB])rxdataF_ext)[symbol]);
+              stop_meas(&UE->pdsch_pre_proc);
 
+              start_meas(&UE->pdsch_post_proc);
               nr_ue_symb_data_t param = {.dl_ch_mag = (c16_t *)dl_ch_mag, .dl_ch_magb = (c16_t *)dl_ch_magb, .dl_ch_magr = (c16_t *)dl_ch_magr,
                                         .pdsch_dl_ch_est_ext = (c16_t *)pdsch_dl_ch_est_ext, .pdsch_dl_ch_estimates = (c16_t *)pdsch_ch_estiamtes,
                                         .rxdataF_comp = (c16_t *)rxdataF_comp, .rxdataF_ext = (c16_t *)rxdataF_ext,
                                         .ptrs_phase_per_slot = (c16_t *)ptrs_phase, .ptrs_re_per_slot = (int32_t *)ptrs_re,
                                         .symbol = symbol, .UE = UE, .proc = &UE_proc, .phy_data = &phy_data};
               nr_ue_pdsch_procedures((void *)&param);
+              stop_meas(&UE->pdsch_post_proc);
               free(rxdataF_ext); rxdataF_ext = NULL;
               free(pdsch_dl_ch_est_ext); pdsch_dl_ch_est_ext = NULL;
               free(rxdataF_comp); rxdataF_comp = NULL;
@@ -1391,6 +1400,15 @@ int main(int argc, char **argv)
 
 
       printf("\nUE RX function statistics (per %d us slot)\n",1000>>*scc->ssbSubcarrierSpacing);
+      printStatIndent(&UE->pdsch_mem_init,"PDSCH memory allocation");
+      printStatIndent(&UE->pdsch_pre_proc,"PDSCH symbol procedures");
+      printStatIndent(&UE->pdsch_post_proc,"PDSCH post processing");
+      printStatIndent2(&UE->pdsch_comp_out,"PDSCH comp out");
+      printStatIndent2(&UE->pdsch_llr_gen,"PDSCH LLR generation");
+      printStatIndent2(&UE->pdsch_llr_demapping,"PDSCH LLR demapping");
+      printStatIndent2(&UE->dlsch_procedures_stat,"DLSCH Procedures");
+      printStatIndent2(&UE->dlsch_ldpc_decoding_stats,"DLSCH LDPC decoding");
+      printStatIndent2(&UE->dlsch_ldpc_whole,"DLSCH LDPC decoding");
       /*
       printDistribution(&phy_proc_rx_tot, table_rx,"Total PHY proc rx");
       printStatIndent(&ue_front_end_tot,"Front end processing");
