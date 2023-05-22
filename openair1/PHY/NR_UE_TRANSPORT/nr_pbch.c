@@ -132,7 +132,7 @@ static uint16_t nr_pbch_extract(const NR_DL_FRAME_PARMS *frame_parms,
       }
     }
 
-    const struct complex16 *dl_ch0 = &dl_ch_estimates[aarx][((symbol+s_offset)*(frame_parms->ofdm_symbol_size))];
+    const struct complex16 *dl_ch0 = dl_ch_estimates[aarx];
 
     //printf("dl_ch0 addr %p\n",dl_ch0);
     struct complex16 *dl_ch0_ext = dl_ch_estimates_ext[aarx];

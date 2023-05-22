@@ -1170,14 +1170,7 @@ int main(int argc, char **argv)
         int16_t *pdcchLlr = NULL;
         c16_t (*pdsch_ch_estiamtes)[NR_SYMBOLS_PER_SLOT][phy_data.dlsch[0].Nl]
           [UE->frame_parms.nb_antennas_rx][UE->frame_parms.ofdm_symbol_size] = NULL;
-        c16_t *pdsch_dl_ch_est_ext = NULL;
         c16_t *rxdataF_ext = NULL;
-        c16_t *rxdataF_comp = NULL;
-        c16_t *dl_ch_mag = NULL;
-        c16_t *dl_ch_magb = NULL;
-        c16_t *dl_ch_magr = NULL;
-        c16_t *ptrs_phase = NULL;
-        int32_t *ptrs_re = NULL;
         nr_pdcch_slot_init(&phy_data, UE);
         nr_pdsch_slot_init(&phy_data, UE);
         int sampleOffset = 0;
@@ -1231,16 +1224,11 @@ int main(int argc, char **argv)
                                             UE->frame_parms.nb_antennas_rx * UE->frame_parms.ofdm_symbol_size;
               pdsch_ch_estiamtes = malloc16_clear(sizeof(c16_t) * pdsch_ch_est_size);
             }
-            const int ext_size = NR_SYMBOLS_PER_SLOT * phy_data.dlsch[0].Nl *
-                                UE->frame_parms.nb_antennas_rx * phy_data.dlsch[0].dlsch_config.number_rbs * NR_NB_SC_PER_RB;
-            if (!rxdataF_ext) rxdataF_ext = malloc16_clear(sizeof(c16_t) * ext_size);
-            if (!pdsch_dl_ch_est_ext) pdsch_dl_ch_est_ext = malloc16_clear(sizeof(c16_t) * ext_size);
-            if (!rxdataF_comp) rxdataF_comp = malloc16_clear(sizeof(c16_t) * ext_size);
-            if (!dl_ch_mag) dl_ch_mag = malloc16_clear(sizeof(c16_t) * ext_size);
-            if (!dl_ch_magb) dl_ch_magb = malloc16_clear(sizeof(c16_t) * ext_size);
-            if (!dl_ch_magr) dl_ch_magr = malloc16_clear(sizeof(c16_t) * ext_size);
-            if (!ptrs_phase) ptrs_phase = malloc16_clear(sizeof(c16_t) * NR_SYMBOLS_PER_SLOT * UE->frame_parms.nb_antennas_rx);
-            if (!ptrs_re) ptrs_re = malloc16_clear(sizeof(c16_t) * NR_SYMBOLS_PER_SLOT * UE->frame_parms.nb_antennas_rx);
+            if (!rxdataF_ext) {
+              const int ext_size = NR_SYMBOLS_PER_SLOT * phy_data.dlsch[0].Nl *
+                                   UE->frame_parms.nb_antennas_rx * phy_data.dlsch[0].dlsch_config.number_rbs * NR_NB_SC_PER_RB;
+              rxdataF_ext = malloc16_clear(sizeof(c16_t) * ext_size);
+            }
             stop_meas(&UE->pdsch_mem_init);
             if ((symbol < last_pdsch_symbol) &&
                 (symbol >= first_pdsch_symbol)) {
@@ -1268,21 +1256,13 @@ int main(int argc, char **argv)
               stop_meas(&UE->pdsch_pre_proc);
 
               start_meas(&UE->pdsch_post_proc);
-              nr_ue_symb_data_t param = {.dl_ch_mag = (c16_t *)dl_ch_mag, .dl_ch_magb = (c16_t *)dl_ch_magb, .dl_ch_magr = (c16_t *)dl_ch_magr,
-                                        .pdsch_dl_ch_est_ext = (c16_t *)pdsch_dl_ch_est_ext, .pdsch_dl_ch_estimates = (c16_t *)pdsch_ch_estiamtes,
-                                        .rxdataF_comp = (c16_t *)rxdataF_comp, .rxdataF_ext = (c16_t *)rxdataF_ext,
-                                        .ptrs_phase_per_slot = (c16_t *)ptrs_phase, .ptrs_re_per_slot = (int32_t *)ptrs_re,
+              nr_ue_symb_data_t param = {.pdsch_dl_ch_estimates = (c16_t *)pdsch_ch_estiamtes,
+                                        .rxdataF_ext = (c16_t *)rxdataF_ext,
                                         .symbol = symbol, .UE = UE, .proc = &UE_proc, .phy_data = &phy_data};
               nr_ue_pdsch_procedures((void *)&param);
               stop_meas(&UE->pdsch_post_proc);
               free(rxdataF_ext); rxdataF_ext = NULL;
-              free(pdsch_dl_ch_est_ext); pdsch_dl_ch_est_ext = NULL;
-              free(rxdataF_comp); rxdataF_comp = NULL;
-              free(dl_ch_mag); dl_ch_mag = NULL;
-              free(dl_ch_magb); dl_ch_magb = NULL;
-              free(dl_ch_magr); dl_ch_magr = NULL;
-              free(ptrs_phase); ptrs_phase = NULL;
-              free(ptrs_re); ptrs_re = NULL;
+              free(pdsch_ch_estiamtes); pdsch_ch_estiamtes = NULL;
               pdsch_state = DONE;
             }
           }

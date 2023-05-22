@@ -596,7 +596,7 @@ int nr_pbch_dmrs_correlation(PHY_VARS_NR_UE *ue,
   k = nushift;
 
 #ifdef DEBUG_PBCH
-  printf("PBCH DMRS Correlation : gNB_id %d , OFDM size %d, Ncp=%d, Ns=%d, k=%d symbol %d\n", proc->gNB_id, ue->frame_parms.ofdm_symbol_size, ue->frame_parms.Ncp, Ns, k, symbol);
+  printf("PBCH DMRS Correlation : gNB_id %d , OFDM size %d, Ncp=%d, k=%d symbol %d\n", proc->gNB_id, ue->frame_parms.ofdm_symbol_size, ue->frame_parms.Ncp, k, symbol);
 #endif
 
   // generate pilot
@@ -725,7 +725,7 @@ int nr_pbch_channel_estimation(const PHY_VARS_NR_UE *ue,
                                const int ssb_index,
                                const int n_hf,
                                const c16_t rxdataF[ue->frame_parms.ofdm_symbol_size],
-                               c16_t dl_ch_estimates[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size])
+                               c16_t dl_ch_estimates[ue->frame_parms.ofdm_symbol_size])
 {
   int pilot[200] __attribute__((aligned(16)));
   int k;
@@ -743,7 +743,7 @@ int nr_pbch_channel_estimation(const PHY_VARS_NR_UE *ue,
   k = nushift;
 
 #ifdef DEBUG_PBCH
-  printf("PBCH Channel Estimation : gNB_id %d ch_offset %d, OFDM size %d, Ncp=%d, Ns=%d, k=%d symbol %d\n", proc->gNB_id, ch_offset, ue->frame_parms.ofdm_symbol_size, ue->frame_parms.Ncp, Ns, k, symbol);
+  printf("PBCH Channel Estimation : OFDM size %d, Ncp=%d\n", ue->frame_parms.ofdm_symbol_size, ue->frame_parms.Ncp);
 #endif
 
   const int16_t *fl;
@@ -786,7 +786,7 @@ int nr_pbch_channel_estimation(const PHY_VARS_NR_UE *ue,
   int re_offset = ssb_offset;
   int16_t *pil   = (int16_t *)&pilot[0];
   int16_t *rxF   = (int16_t *)&rxdataF[(k+re_offset)];
-  int16_t *dl_ch = (int16_t *)&dl_ch_estimates;
+  int16_t *dl_ch = (int16_t *)dl_ch_estimates;
 
   memset(dl_ch,0,sizeof(struct complex16)*(ue->frame_parms.ofdm_symbol_size));
 

@@ -1038,6 +1038,33 @@ bool nr_ue_pdsch_procedures(void *parms)
   }
 
   start_meas(&ue->pdsch_comp_out);
+
+  __attribute__ ((aligned(32))) c16_t rxdataF_comp[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB];
+  memset(rxdataF_comp, 0, sizeof(rxdataF_comp));
+
+  __attribute__ ((aligned(32))) c16_t pdsch_dl_ch_est_ext[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB];
+  memset(pdsch_dl_ch_est_ext, 0, sizeof(pdsch_dl_ch_est_ext));
+
+  __attribute__ ((aligned(32))) c16_t dl_ch_mag[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB];
+  memset(dl_ch_mag, 0, sizeof(dl_ch_mag));
+
+  __attribute__ ((aligned(32))) c16_t dl_ch_magb[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB];
+  memset(dl_ch_magb, 0, sizeof(dl_ch_magb));
+
+  __attribute__ ((aligned(32))) c16_t dl_ch_magr[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
+    [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB];
+  memset(dl_ch_magr, 0, sizeof(dl_ch_magr));
+
+  __attribute__ ((aligned(32))) c16_t ptrs_phase[NR_SYMBOLS_PER_SLOT][ue->frame_parms.nb_antennas_rx];
+  memset(ptrs_phase, 0, sizeof(ptrs_phase));
+
+  __attribute__ ((aligned(32))) int32_t ptrs_re[NR_SYMBOLS_PER_SLOT][ue->frame_parms.nb_antennas_rx];
+  memset(ptrs_re, 0, sizeof(ptrs_re));
+
   notifiedFIFO_t nf;
   initNotifiedFIFO(&nf);
   for (int symbol = dlsch->dlsch_config.start_symbol;
@@ -1051,12 +1078,14 @@ bool nr_ue_pdsch_procedures(void *parms)
     symbMsg->symbol                = symbol;
     symbMsg->phy_data              = msg->phy_data;
     symbMsg->pdsch_dl_ch_estimates = msg->pdsch_dl_ch_estimates;
-    symbMsg->pdsch_dl_ch_est_ext   = msg->pdsch_dl_ch_est_ext + (symbol * symbBlockSizeExt);
     symbMsg->rxdataF_ext           = msg->rxdataF_ext + (symbol * symbBlockSizeExt);
-    symbMsg->rxdataF_comp          = msg->rxdataF_comp + (symbol * symbBlockSizeExt);
-    symbMsg->dl_ch_mag             = msg->dl_ch_mag + (symbol * symbBlockSizeExt);
-    symbMsg->dl_ch_magb            = msg->dl_ch_magb + (symbol * symbBlockSizeExt);
-    symbMsg->dl_ch_magr            = msg->dl_ch_magr + (symbol * symbBlockSizeExt);
+    symbMsg->pdsch_dl_ch_est_ext   = (c16_t *)pdsch_dl_ch_est_ext[symbol];
+    symbMsg->rxdataF_comp          = (c16_t *)rxdataF_comp[symbol];
+    symbMsg->dl_ch_mag             = (c16_t *)dl_ch_mag[symbol];
+    symbMsg->dl_ch_magb            = (c16_t *)dl_ch_magb[symbol];
+    symbMsg->dl_ch_magr            = (c16_t *)dl_ch_magr[symbol];
+    symbMsg->ptrs_phase_per_slot   = (c16_t *)ptrs_phase;
+    symbMsg->ptrs_re_per_slot      = (int32_t *)ptrs_re;
     pushTpool(&(get_nrUE_params()->Tpool), newElt);
   }
 
@@ -1072,16 +1101,12 @@ bool nr_ue_pdsch_procedures(void *parms)
   return pdsch_post_processing(msg->UE,
                                msg->proc,
                                dlsch,
-                               *((c16_t (*)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT])msg->ptrs_phase_per_slot),
-                               *((int32_t (*)[ue->frame_parms.nb_antennas_rx][NR_SYMBOLS_PER_SLOT])msg->ptrs_re_per_slot),
-                               *((c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
-                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_mag),
-                               *((c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
-                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_magb),
-                               *((c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
-                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->dl_ch_magr),
-                               *((c16_t (*)[NR_SYMBOLS_PER_SLOT][dlsch->Nl]
-                                 [ue->frame_parms.nb_antennas_rx][dlsch->dlsch_config.number_rbs * NR_NB_SC_PER_RB])msg->rxdataF_comp));
+                               ptrs_phase,
+                               ptrs_re,
+                               dl_ch_mag,
+                               dl_ch_magb,
+                               dl_ch_magr,
+                               rxdataF_comp);
 }
 
 void nr_csi_slot_init(const PHY_VARS_NR_UE *ue,
@@ -1388,9 +1413,17 @@ int nr_process_pbch_symbol(PHY_VARS_NR_UE *ue,
                                                                   proc->nr_slot_rx,
                                                                   proc->frame_rx) : ssbIndexIn;
   if (ssbIndex < 0) return -1;
-  /* Found SSB. Process it */
+
   const int startPbchSymb = nr_get_ssb_start_symbol(&ue->frame_parms, ssbIndex) + 1;
   const int startPbchSymbHf = startPbchSymb + (ue->frame_parms.slots_per_frame * NR_SYMBOLS_PER_SLOT / 2);
+  if (!((symbIdxInFrame < startPbchSymb) &&
+        (symbIdxInFrame > startPbchSymb + NB_SYMBOLS_PBCH - 1) &&
+        (symbIdxInFrame < startPbchSymbHf) &&
+        (symbIdxInFrame > startPbchSymbHf + NB_SYMBOLS_PBCH - 1))) {
+    return -1; /* Current symbol does not have PBCH */
+  }
+
+  /* Found PBCH. Process it */
   c16_t dl_ch_estimates[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size];
 
   for (int aarx = 0; aarx < ue->frame_parms.nb_antennas_rx; aarx++) {

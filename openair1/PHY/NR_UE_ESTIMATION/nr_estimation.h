@@ -72,7 +72,7 @@ int nr_pbch_channel_estimation(const PHY_VARS_NR_UE *ue,
                                const int ssb_index,
                                const int n_hf,
                                const c16_t rxdataF[ue->frame_parms.ofdm_symbol_size],
-                               c16_t dl_ch_estimates[ue->frame_parms.nb_antennas_rx][ue->frame_parms.ofdm_symbol_size]);
+                               c16_t dl_ch_estimates[ue->frame_parms.ofdm_symbol_size]);
 
 int nr_pdsch_channel_estimation(const PHY_VARS_NR_UE *ue,
                                 const UE_nr_rxtx_proc_t *proc,

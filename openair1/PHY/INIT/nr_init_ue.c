@@ -299,17 +299,9 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
 
   // init RX buffers
   common_vars->rxdata  = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
-  for (int i = 0; i < NR_SYMBOLS_PER_SLOT; i++) {
-    common_vars->rxdataSymb[i] = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
-    common_vars->rxdataF[i] = (c16_t **)malloc16( fp->nb_antennas_rx*sizeof(c16_t *));
-  }
 
   for (int i=0; i<fp->nb_antennas_rx; i++) {
     common_vars->rxdata[i] = (c16_t *)malloc16_clear((2 * (fp->samples_per_frame)+fp->ofdm_symbol_size) * sizeof(c16_t));
-    for (int j = 0; j < NR_SYMBOLS_PER_SLOT; j++) {
-      common_vars->rxdataSymb[j][i] = (c16_t *)malloc16_clear((fp->ofdm_symbol_size + fp->nb_prefix_samples0) * sizeof(c16_t));
-      common_vars->rxdataF[j][i] = (c16_t *)malloc16_clear(fp->ofdm_symbol_size * sizeof(c16_t));
-    }
   }
 
   // ceil(((NB_RB<<1)*3)/32) // 3 RE *2(QPSK)
@@ -420,12 +412,6 @@ void term_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
 
   for (int i = 0; i < fp->nb_antennas_rx; i++) {
     free_and_zero(common_vars->rxdata[i]);
-    for (int j = 0; j < NR_SYMBOLS_PER_SLOT; j++) {
-      free_and_zero(common_vars->rxdataF[j][i]);
-      free_and_zero(common_vars->rxdataSymb[j][i]);
-    }
-    free_and_zero(common_vars->rxdataF[i]);
-    free_and_zero(common_vars->rxdataSymb[i]);
   }
   free_and_zero(common_vars->rxdata);
 

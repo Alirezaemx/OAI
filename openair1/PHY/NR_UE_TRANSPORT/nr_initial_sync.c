@@ -159,9 +159,9 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t *proc,
                                   temp_ptr->i_ssb,
                                   temp_ptr->n_hf,
                                   rxdataF[i][aarx],
-                                  dl_ch_estimates);
+                                  dl_ch_estimates[aarx]);
       }
-      nr_generate_pbch_llr(ue, i-pbch_initial_symbol, temp_ptr->i_ssb, rxdataF[i], dl_ch_estimates, pbch_e_rx);
+      nr_generate_pbch_llr(ue, i-pbch_initial_symbol+1, temp_ptr->i_ssb, rxdataF[i], dl_ch_estimates, pbch_e_rx);
     }
     fapiPbch_t pbchResult = {0}; /* TODO: Not used anywhere. To be cleaned later */
     ret = nr_pbch_decode(ue, proc, temp_ptr->i_ssb, pbch_e_rx, &pbchResult, phy_data);
@@ -290,7 +290,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
       /* time samples in buffer rxdata are used as input of FFT -> FFT results are stored in the frequency buffer rxdataF */
       /* rxdataF stores SS/PBCH from beginning of buffers in the same symbol order as in time domain */
 
-      __attribute__ ((aligned(32))) c16_t rxdata[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][fp->ofdm_symbol_size + fp->nb_prefix_samples0];
+      __attribute__ ((aligned(32))) c16_t rxdata[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][fp->ofdm_symbol_size];
       __attribute__ ((aligned(32))) c16_t rxdataF[NR_N_SYMBOLS_SSB][fp->nb_antennas_rx][fp->ofdm_symbol_size];
 
       for (int aarx = 0; aarx < fp->nb_antennas_rx; aarx++) {
