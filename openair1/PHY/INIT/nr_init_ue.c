@@ -291,11 +291,11 @@ int init_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
     ue->tx_power_dBm[i]=-127;
 
   // init TX buffers
-  common_vars->txdata  = (c16_t **)malloc16(fp->nb_antennas_tx*sizeof(c16_t *));
+  common_vars->txData = (c16_t **)malloc16(fp->nb_antennas_tx * sizeof(c16_t *));
   common_vars->txdataF = (c16_t **)malloc16(fp->nb_antennas_tx*sizeof(c16_t *));
 
   for (i=0; i<fp->nb_antennas_tx; i++) {
-    common_vars->txdata[i]  = (c16_t *)malloc16_clear((fp->samples_per_frame) * sizeof(c16_t));
+    common_vars->txData[i] = (c16_t *)malloc16_clear((fp->samples_per_frame) * sizeof(c16_t));
     common_vars->txdataF[i] = (c16_t *)malloc16_clear((fp->samples_per_frame) * sizeof(c16_t));
   }
 
@@ -411,11 +411,11 @@ void term_nr_ue_signal(PHY_VARS_NR_UE *ue, int nb_connected_gNB)
   NR_UE_COMMON* common_vars = &ue->common_vars;
 
   for (int i = 0; i < fp->nb_antennas_tx; i++) {
-    free_and_zero(common_vars->txdata[i]);
+    free_and_zero(common_vars->txData[i]);
     free_and_zero(common_vars->txdataF[i]);
   }
 
-  free_and_zero(common_vars->txdata);
+  free_and_zero(common_vars->txData);
   free_and_zero(common_vars->txdataF);
 
   for (int i = 0; i < fp->nb_antennas_rx; i++) {

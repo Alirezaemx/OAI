@@ -588,15 +588,9 @@ void nr_ue_ulsch_procedures(PHY_VARS_NR_UE *UE,
 
 }
 
-
-uint8_t nr_ue_pusch_common_procedures(PHY_VARS_NR_UE *UE,
-                                      uint8_t slot,
-                                      NR_DL_FRAME_PARMS *frame_parms,
-                                      uint8_t n_antenna_ports) {
-
+uint8_t nr_ue_pusch_common_procedures(PHY_VARS_NR_UE *UE, uint8_t slot, NR_DL_FRAME_PARMS *frame_parms, uint8_t n_antenna_ports)
+{
   int tx_offset, ap;
-  c16_t **txdata;
-  c16_t **txdataF;
 
   /////////////////////////IFFT///////////////////////
   ///////////
@@ -609,9 +603,8 @@ uint8_t nr_ue_pusch_common_procedures(PHY_VARS_NR_UE *UE,
 	  //memset(&UE->common_vars.txdataF[aa][tx_offset],0,UE->frame_parms.samples_per_slot*sizeof(int32_t));
   }*/
 
-
-  txdata = UE->common_vars.txdata;
-  txdataF = UE->common_vars.txdataF;
+  c16_t **txdata = UE->common_vars.txData;
+  c16_t **txdataF = UE->common_vars.txdataF;
 
   int symb_offset = (slot%frame_parms->slots_per_subframe)*frame_parms->symbols_per_slot;
   for(ap = 0; ap < n_antenna_ports; ap++) {
