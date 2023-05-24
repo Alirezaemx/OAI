@@ -7,7 +7,7 @@ run `python3 configure.py -t env`
 All other options can be modified after generating .env file.
 
 BUILD_CLEAN string can be changed as required for different options at the time
-of running docker compose oai_build (in generated .env file, and not in template).
+of running docker compose oai-build (in generated .env file, and not in template).
 
 To explicitly generate vnf config:
 `VNF_ADDR="ipaddress" python3 configure.py -t vnf`
@@ -18,22 +18,22 @@ To explicitly generate pnf config:
 
 # Build
 ```
-docker compose up oai_build
+docker compose up oai-build
 ```
 
 # VNF
 ```
-docker compose up oai_vnf
+docker compose up oai-vnf
 ```
 
 # PNF
 ```
-docker compose up oai_pnf
+docker compose up oai-pnf
 ```
 
 # UE
 ```
-docker compose up oai_ue
+docker compose up oai-ue
 ```
 
 # vnf, pnf, ue all together
