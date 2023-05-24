@@ -37,6 +37,7 @@
 #include "nfapi_pnf.h"
 #include "common/ran_context.h"
 #include "openair2/PHY_INTERFACE/phy_stub_UE.h"
+#include "openair2/NR_PHY_INTERFACE/nr_sched_response.h"
 
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -1106,13 +1107,19 @@ notifiedFIFO_elt_t *l1tx_message_extract(PHY_VARS_gNB *gNB, int frame, int slot)
   return res;
 }
 
+nfapi_nr_ul_dci_request_pdus_t g_ul_dci_pdu_list[NFAPI_NR_MAX_NB_CORESETS];
+uint8_t g_num_ul_pdcch = 0;
+int g_ul_dci_sched_response_id = 0;
 int pnf_phy_ul_dci_req(gNB_L1_rxtx_proc_t *proc, nfapi_pnf_p7_config_t *pnf_p7, nfapi_nr_ul_dci_request_t *req) {
   
   //   LOG_D(PHY,"[PNF] HI_DCI0_REQUEST SFN/SF:%05d dci:%d hi:%d\n", NFAPI_SFNSF2DEC(req->sfn_sf), req->hi_dci0_request_body.number_of_dci, req->hi_dci0_request_body.number_of_hi);
 
   struct PHY_VARS_gNB_s *gNB = RC.gNB[0];
 
+  int slot_type = nr_slot_select(&gNB->gNB_config, req->SFN, req->Slot);
+  if (slot_type == NR_DOWNLINK_SLOT || slot_type == NR_MIXED_SLOT) {
   // extract the next available thread message (priority to message with current slot, then free message)
+  /*
   notifiedFIFO_elt_t *res;
   res = l1tx_message_extract(gNB, req->SFN, req->Slot);
   processingData_L1tx_t *msgTx = (processingData_L1tx_t *)NotifiedFifoData(res);
@@ -1120,17 +1127,23 @@ int pnf_phy_ul_dci_req(gNB_L1_rxtx_proc_t *proc, nfapi_pnf_p7_config_t *pnf_p7, 
   if (proc ==NULL) 
     proc = &gNB->proc.L1_proc;
 
+   */
   if (req->numPdus > 0) {
+      g_ul_dci_sched_response_id = req->sched_response_id;
     for (int i=0; i<req->numPdus; i++) {
-      if (req->ul_dci_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_PDCCH_PDU_TYPE) // only possible value 0: PDCCH PDU
-        msgTx->ul_pdcch_pdu[i] = req->ul_dci_pdu_list[i];
-      else
+        if (req->ul_dci_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_PDCCH_PDU_TYPE) { // only possible value 0: PDCCH PDU
+          g_ul_dci_pdu_list[i] = req->ul_dci_pdu_list[i];
+          g_num_ul_pdcch = req->numPdus;
+          LOG_D(PHY,
+                "pushNotifiedFIFO [PNF] UL_DCI_REQ sfn_slot:%d PDU[%d] - unknown pdu type:%d\n",
+                NFAPI_SFNSLOT2DEC(req->SFN, req->Slot),
+                req->numPdus,
+                req->ul_dci_pdu_list[req->numPdus - 1].PDUType);
+        } else
         LOG_E(PHY,"[PNF] UL_DCI_REQ sfn_slot:%d PDU[%d] - unknown pdu type:%d\n", NFAPI_SFNSLOT2DEC(req->SFN, req->Slot), req->numPdus-1, req->ul_dci_pdu_list[req->numPdus-1].PDUType);
     }
   }
-
-  pushNotifiedFIFO(&gNB->L1_tx_filled, res);
-
+  }
   return 0;
 }
 
@@ -1199,20 +1212,37 @@ int pnf_phy_dl_tti_req(gNB_L1_rxtx_proc_t *proc, nfapi_pnf_p7_config_t *pnf_p7, 
                 req->dl_tti_request_body.nUe,
                 req->dl_tti_request_body.PduIdx);
 
-  for (int i=0; i<req->dl_tti_request_body.nPDUs; i++) {
+  if (req->dl_tti_request_body.nPDUs) {
+    int slot_type = nr_slot_select(&gNB->gNB_config, sfn, slot);
+    if (slot_type == NR_DOWNLINK_SLOT || slot_type == NR_MIXED_SLOT) {
     // NFAPI_TRACE(NFAPI_TRACE_INFO, "%s() sfn/sf:%d PDU[%d] size:%d pdcch_vars->num_dci:%d\n", __FUNCTION__, NFAPI_SFNSF2DEC(req->sfn_sf), i, dl_config_pdu_list[i].pdu_size,pdcch_vars->num_dci);
     notifiedFIFO_elt_t *res;
     res = l1tx_message_extract(gNB, sfn, slot);
     processingData_L1tx_t *msgTx = (processingData_L1tx_t *)NotifiedFifoData(res);
-
+      msgTx->slot = slot;
+      msgTx->frame = sfn;
+      msgTx->sched_response_id = req->sched_response_id;
+      msgTx->num_pdsch_slot=0;
+      msgTx->num_dl_pdcch=0;
+      msgTx->num_ul_pdcch = 0;
+      if (g_num_ul_pdcch > 0) {
+        msgTx->num_ul_pdcch = g_num_ul_pdcch;
+        for (int i = 0; i < g_num_ul_pdcch; i++) {
+          msgTx->ul_pdcch_pdu[i] = g_ul_dci_pdu_list[i];
+          msgTx->sched_response_id = g_ul_dci_sched_response_id;
+        }
+        g_num_ul_pdcch = 0;
+      }
+      for (int i = 0; i < req->dl_tti_request_body.nPDUs; i++) {
     if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_PDCCH_PDU_TYPE) {
-      msgTx->pdcch_pdu[i] = dl_tti_pdu_list[i].pdcch_pdu; // copies all the received PDCCH PDUs
-    } 
-    else if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_SSB_PDU_TYPE) {
+        msgTx->pdcch_pdu[msgTx->num_dl_pdcch] = dl_tti_pdu_list[i].pdcch_pdu; // copies all the received PDCCH PDUs
+        //gNB->pdcch_pdu[msgTx->num_dl_pdcch].frame = sfn;
+        msgTx->num_dl_pdcch++;
+        } else if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_SSB_PDU_TYPE) {
       //NFAPI_TRACE(NFAPI_TRACE_INFO, "%s() PDU:%d BCH: pdu_index:%u pdu_length:%d sdu_length:%d BCH_SDU:%x,%x,%x\n", __FUNCTION__, i, pdu_index, bch_pdu->bch_pdu_rel8.length, tx_request_pdu[sfn][sf][pdu_index]->segments[0].segment_length, sdu[0], sdu[1], sdu[2]);
       handle_nr_nfapi_ssb_pdu(msgTx, sfn, slot, &dl_tti_pdu_list[i]);
-    }
-    else if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_PDSCH_PDU_TYPE) {
+        //printf("%s() - NFAPI_NR_DL_TTI_SSB_PDU_TYPE\n", __FUNCTION__);
+        } else if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_PDSCH_PDU_TYPE) {
       nfapi_nr_dl_tti_pdsch_pdu *pdsch_pdu = &dl_tti_pdu_list[i].pdsch_pdu;
       nfapi_nr_dl_tti_pdsch_pdu_rel15_t *rel15_pdu = &pdsch_pdu->pdsch_pdu_rel15;
       nfapi_nr_pdu_t *tx_data = tx_data_request[sfn][slot][rel15_pdu->pduIndex];
@@ -1225,21 +1255,44 @@ int pnf_phy_dl_tti_req(gNB_L1_rxtx_proc_t *proc, nfapi_pnf_p7_config_t *pnf_p7, 
                     msgTx->num_pdsch_slot,
                     gNB->max_nb_pdsch);
         handle_nr_nfapi_pdsch_pdu(msgTx, pdsch_pdu, dlsch_sdu);
-      } 
-      else {
+        } else {
         NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s() DLSCH NULL TX PDU SFN/SF:%d PDU_INDEX:%d\n", __FUNCTION__, NFAPI_SFNSLOT2DEC(sfn,slot), rel15_pdu->pduIndex);     
       }
-    }
-    else if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_CSI_RS_PDU_TYPE) {
+        } else if (dl_tti_pdu_list[i].PDUType == NFAPI_NR_DL_TTI_CSI_RS_PDU_TYPE) {
       nfapi_nr_dl_tti_csi_rs_pdu *csi_rs_pdu = &dl_tti_pdu_list[i].csi_rs_pdu;
       handle_nfapi_nr_csirs_pdu(msgTx, sfn, slot, csi_rs_pdu);
+        } else {
+        NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s() UNKNOWN:%d\n", __FUNCTION__, dl_tti_pdu_list[i].PDUType);
+        }
+      }
+      inc_ref_sched_response(req->sched_response_id);
+      //LOG_I(PHY,"if PushNotifiedFifo %d\n", msgTx->num_ul_pdcch);
+      pushNotifiedFIFO(&gNB->L1_tx_filled, res);
     }
-    else {
-      NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s() UNKNOWN:%d\n", __FUNCTION__, dl_tti_pdu_list[i].PDUType);
+  } else {
+    int slot_type = nr_slot_select(&gNB->gNB_config, sfn, slot);
+    if (slot_type == NR_DOWNLINK_SLOT || slot_type == NR_MIXED_SLOT) {
+      notifiedFIFO_elt_t *res;
+      res = l1tx_message_extract(gNB, sfn, slot);
+      processingData_L1tx_t *msgTx = (processingData_L1tx_t *)NotifiedFifoData(res);
+      msgTx->slot = slot;
+      msgTx->frame = sfn;
+      msgTx->sched_response_id = req->sched_response_id;
+      msgTx->num_pdsch_slot=0;
+      msgTx->num_dl_pdcch=0;
+      msgTx->num_ul_pdcch = 0;
+      if (g_num_ul_pdcch > 0) {
+        msgTx->num_ul_pdcch = g_num_ul_pdcch;
+        for (int i = 0; i < g_num_ul_pdcch; i++) {
+          msgTx->ul_pdcch_pdu[i] = g_ul_dci_pdu_list[i];
+          msgTx->sched_response_id = g_ul_dci_sched_response_id;
     }
-    pushNotifiedFIFO(&gNB->L1_tx_filled, res);
+        g_num_ul_pdcch = 0;
+      }
+      inc_ref_sched_response(req->sched_response_id);
+      pushNotifiedFIFO(&gNB->L1_tx_filled, res);
+    }
   }
-
   if(req->vendor_extension)
     free(req->vendor_extension);
 
@@ -1440,6 +1493,10 @@ int pnf_phy_ul_tti_req(gNB_L1_rxtx_proc_t *proc, nfapi_pnf_p7_config_t *pnf_p7, 
         //LOG_D(PHY,"frame %d, slot %d, Got NFAPI_NR_UL_TTI_PRACH_PDU_TYPE for %d.%d\n", frame, slot, UL_tti_req->SFN, UL_tti_req->Slot);
         nr_fill_prach(gNB, curr_sfn, curr_slot, &ul_tti_pdu_list[i].prach_pdu);
         if (gNB->RU_list[0]->if_south == LOCAL_RF) nr_fill_prach_ru(gNB->RU_list[0], curr_sfn, curr_slot, &ul_tti_pdu_list[i].prach_pdu);
+        break;
+      case NFAPI_NR_UL_CONFIG_SRS_PDU_TYPE:
+        //LOG_D(PHY,"frame %d, slot %d, Got NFAPI_NR_UL_CONFIG_SRS_PDU_TYPE for %d.%d\n", frame, slot, UL_tti_req->SFN, UL_tti_req->Slot);
+        nr_fill_srs(gNB,curr_sfn, curr_slot, &ul_tti_pdu_list[i].srs_pdu);
         break;
       default:
       NFAPI_TRACE(NFAPI_TRACE_ERROR, "%s() PDU:%i UNKNOWN type :%d\n", __FUNCTION__, i, ul_tti_pdu_list[i].pdu_type);
@@ -1741,6 +1798,8 @@ int start_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy, nfapi
   return 0;
 }
 
+nfapi_nr_dl_tti_request_t dummy_dl_tti_req;
+nfapi_pnf_p7_slot_buffer_t dummy_slot;
 int nr_start_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy,  nfapi_nr_start_request_scf_t *req) {
   printf("[PNF] Received NFAPI_START_REQ phy_id:%d\n", req->header.phy_id);
   pnf_info *pnf = (pnf_info *)(config->user_data);
@@ -1816,6 +1875,18 @@ int nr_start_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy,  n
   dummy_subframe.hi_dci0_req=0;
   dummy_subframe.lbt_dl_config_req=0;
   p7_config->dummy_subframe = dummy_subframe;
+
+  memset(&dummy_dl_tti_req, 0, sizeof(dummy_dl_tti_req));
+  dummy_dl_tti_req.dl_tti_request_body.nPDUs=0;
+  dummy_dl_tti_req.dl_tti_request_body.nGroup=0;
+  dummy_dl_tti_req.dl_tti_request_body.nUe[255]=0;
+  dummy_dl_tti_req.dl_tti_request_body.PduIdx[255][11]=0;
+  memset(dummy_dl_tti_req.dl_tti_request_body.dl_tti_pdu_list,0,sizeof(dummy_dl_tti_req.dl_tti_request_body.dl_tti_pdu_list));
+  dummy_slot.dl_tti_req = &dummy_dl_tti_req;
+  dummy_slot.ul_tti_req = 0;
+  dummy_slot.ul_dci_req = 0;
+  dummy_slot.tx_data_req =0;
+  p7_config->dummy_slot = dummy_slot;
   p7_config->vendor_ext = &pnf_phy_vendor_ext;
   p7_config->allocate_p7_vendor_ext = &pnf_phy_allocate_p7_vendor_ext;
   p7_config->deallocate_p7_vendor_ext = &pnf_phy_deallocate_p7_vendor_ext;
@@ -1862,7 +1933,7 @@ int nr_start_request(nfapi_pnf_config_t *config, nfapi_pnf_phy_config_t *phy,  n
   printf("[PNF] Sending PNF_START_RESP\n");
   nfapi_nr_send_pnf_start_resp(config, p7_config->phy_id);
   printf("[PNF] Sending first P7 slot indication\n");
-#if 1
+#if 0
   nfapi_pnf_p7_slot_ind(p7_config, p7_config->phy_id, 0, 0);
   printf("[PNF] Sent first P7 slot ind\n");
 #else

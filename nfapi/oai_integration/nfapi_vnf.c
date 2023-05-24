@@ -974,6 +974,7 @@ int phy_nr_crc_indication(nfapi_nr_crc_indication_t *ind) {
       crc_ind->crc_list[j].tb_crc_status = ind->crc_list[j].tb_crc_status;
       crc_ind->crc_list[j].timing_advance = ind->crc_list[j].timing_advance;
       crc_ind->crc_list[j].ul_cqi = ind->crc_list[j].ul_cqi;
+      crc_ind->crc_list[j].rssi = ind->crc_list[j].rssi;
       LOG_D(NR_MAC, "Received crc_ind.harq_id = %d for %d index SFN SLot %u %u with rnti %x\n",
                     ind->crc_list[j].harq_id, j, ind->sfn, ind->slot, ind->crc_list[j].rnti);
     }
@@ -1244,7 +1245,7 @@ int phy_cqi_indication(struct nfapi_vnf_p7_config *config, nfapi_cqi_indication_
 
 int phy_nr_slot_indication(nfapi_nr_slot_indication_scf_t *ind) {
 
-  uint8_t vnf_slot_ahead = 0;
+  uint8_t vnf_slot_ahead = 4;
   uint32_t vnf_sfn_slot = sfnslot_add_slot(ind->sfn, ind->slot, vnf_slot_ahead);
   uint16_t vnf_sfn = NFAPI_SFNSLOT2SFN(vnf_sfn_slot);
   uint8_t vnf_slot = NFAPI_SFNSLOT2SLOT(vnf_sfn_slot);

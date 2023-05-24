@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  oai_build:
+  oai-build:
     image: oai-base
     # container_name: ${DEV}_oai_ranwiser_build
     volumes:
@@ -11,7 +11,7 @@ services:
         && source oaienv
         && cd cmake_targets
         && ./build_oai -w SIMU --gNB --nrUE --build-lib nrscope ${BUILD_CLEAN} |& tee build.log"
-  oai_vnf:
+  oai-vnf:
     image: oai-base
     privileged: true
     # container_name: ${DEV}_oai_ranwiser_vnf0
@@ -28,17 +28,17 @@ services:
     command: >
         "cd ${ROOT_VOL}/openairinterface5g
         && source oaienv
-        && cd ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf
-        && python3 conf_generator.py -t vnf
-        && chown -R ${USERID}:${USERID} ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf/conf
+        && cd ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split
+        && python3 configure.py -t vnf
+        && chown -R ${USERID}:${USERID} ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split/conf
         && cd ${ROOT_VOL}/openairinterface5g/cmake_targets
-        && ./ran_build/build/nr-softmodem ${R_W_SCOPE} -O ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf/conf/sCont.vnf.sa.band78.106prb.rfsim.conf --rfsim --sa -E --nfapi VNF |& tee vnf.log"
+        && ./ran_build/build/nr-softmodem ${R_W_SCOPE} -O ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split/conf/sCont.vnf.sa.band78.106prb.rfsim.conf --rfsim --sa -E --nfapi VNF |& tee vnf.log"
     healthcheck:
       test: /bin/bash -c "pgrep nr-softmodem"
       interval: 10s
       timeout: 5s
       retries: 5
-  oai_pnf:
+  oai-pnf:
     image: oai-base
     privileged: true
     # container_name: ${DEV}_oai_ranwiser_pnf0
@@ -59,19 +59,19 @@ services:
     command: >
         "cd ${ROOT_VOL}/openairinterface5g
         && source oaienv
-        && cd ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf
-        && python3 conf_generator.py -t pnf
-        && chown -R ${USERID}:${USERID} ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf/conf
+        && cd ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split
+        && python3 configure.py -t pnf
+        && chown -R ${USERID}:${USERID} ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split/conf
         && cd ${ROOT_VOL}/openairinterface5g/cmake_targets
-        && ./ran_build/build/nr-softmodem ${R_W_SCOPE} -O ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf/conf/sCont.pnf.sa.band78.rfsim.conf --rfsim --sa -E --nfapi PNF |& tee pnf.log"
+        && ./ran_build/build/nr-softmodem ${R_W_SCOPE} -O ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split/conf/sCont.pnf.sa.band78.rfsim.conf --rfsim --sa -E --nfapi PNF |& tee pnf.log"
     depends_on:
-      - oai_vnf
+      - oai-vnf
     healthcheck:
       test: /bin/bash -c "pgrep nr-softmodem"
       interval: 10s
       timeout: 5s
       retries: 5
-  oai_ue:
+  oai-ue:
     image: oai-base
     privileged: true
     # container_name: ${DEV}_oai_ranwiser_ue0
@@ -91,13 +91,13 @@ services:
     command: >
         "cd ${ROOT_VOL}/openairinterface5g
         && source oaienv
-        && cd ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf
-        && python3 conf_generator.py -t ue
-        && chown -R ${USERID}:${USERID} ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf/conf
+        && cd ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split
+        && python3 configure.py -t ue
+        && chown -R ${USERID}:${USERID} ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split/conf
         && cd ${ROOT_VOL}/openairinterface5g/cmake_targets
-        && ./ran_build/build/nr-uesoftmodem ${R_W_SCOPE} -O ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_tdd_pvnf/conf/sCont.ue.conf -C 3619200000 --rfsim --sa -E |& tee ue_pvnf.log"
+        && ./ran_build/build/nr-uesoftmodem ${R_W_SCOPE} -O ${ROOT_VOL}/openairinterface5g/ci-scripts/yaml_files/5g_rfsimulator_pnf-vnf_split/conf/sCont.ue.conf -C 3619200000 --rfsim --sa -E |& tee ue.log"
     depends_on:
-      - oai_pnf
+      - oai-pnf
 networks:
   rfsim5g-oai-public-net:
     external: true

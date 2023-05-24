@@ -1019,7 +1019,7 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 				(pnf_p7->_public.tx_data_req_fn)(&(pnf_p7->_public), pnf_p7->_public.dummy_slot.tx_data_req);
 			}
 		}
-		 
+		/* 
 		if(tx_slot_buffer->dl_tti_req != 0 && tx_slot_buffer->dl_tti_req->SFN == sfn_tx && tx_slot_buffer->dl_tti_req->Slot == slot_tx) 
 		{
 			if(pnf_p7->_public.dl_tti_req_fn)
@@ -1038,7 +1038,7 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 				(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.dl_tti_req);
 			}
 		}
-
+		 */
 
 		if(tx_slot_buffer->ul_dci_req!= 0 && tx_slot_buffer->ul_dci_req->SFN == sfn_tx && tx_slot_buffer->ul_dci_req->Slot == slot_tx)
 		{
@@ -1059,6 +1059,25 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 				(pnf_p7->_public.ul_dci_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.ul_dci_req);
 			}
 		}
+		if(tx_slot_buffer->dl_tti_req != 0 && tx_slot_buffer->dl_tti_req->SFN == sfn_tx && tx_slot_buffer->dl_tti_req->Slot == slot_tx) 
+		{
+			if(pnf_p7->_public.dl_tti_req_fn)
+			{
+				LOG_D(PHY, "Process dl_tti SFN/slot %d.%d buffer index: %d \n",sfn_tx,slot_tx,buffer_index_tx);
+				(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), tx_slot_buffer->dl_tti_req);
+			}
+		}
+		else
+		{
+			// send dummy
+			if(pnf_p7->_public.dl_tti_req_fn && pnf_p7->_public.dummy_slot.dl_tti_req)
+			{   
+				pnf_p7->_public.dummy_slot.dl_tti_req->SFN = sfn_tx;
+				pnf_p7->_public.dummy_slot.dl_tti_req->Slot = slot_tx;
+				(pnf_p7->_public.dl_tti_req_fn)(NULL, &(pnf_p7->_public), pnf_p7->_public.dummy_slot.dl_tti_req);
+			}
+		}
+
 		if(tx_slot_buffer->ul_tti_req != 0)
 		{
 			if(pnf_p7->_public.ul_tti_req_fn)
@@ -1085,19 +1104,23 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 			tx_slot_buffer->dl_tti_req = 0;
 			LOG_D(PHY,"SFN/slot %d.%d Buffer index : %d freed \n",sfn_tx,slot_tx,buffer_index_tx);
 		}
-
+		/*
 		if(tx_slot_buffer->tx_data_req != 0)
 		{
 			deallocate_nfapi_tx_data_request(tx_slot_buffer->tx_data_req, pnf_p7);
 			tx_slot_buffer->tx_data_req = 0;
 		}
-
+		 */
 		if(tx_slot_buffer->ul_dci_req != 0)
 		{
 			deallocate_nfapi_ul_dci_request(tx_slot_buffer->ul_dci_req, pnf_p7);
 			tx_slot_buffer->ul_dci_req = 0;
 		}
-
+		if(tx_slot_buffer->ul_tti_req != 0)
+		{
+			deallocate_nfapi_ul_tti_request(tx_slot_buffer->ul_tti_req, pnf_p7);
+			tx_slot_buffer->ul_tti_req = 0;
+		}
 
 		//checking in the rx slot buffers to see if a p7 msg is present.
 
@@ -1143,6 +1166,7 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 		//printf("pnf_p7->timing_info_ms_counter:%d\n", pnf_p7->timing_info_ms_counter);
 
 		//send the periodic timing info if configured
+		/*
 		if(pnf_p7->_public.timing_info_mode_periodic && (pnf_p7->timing_info_period_counter++) == pnf_p7->_public.timing_info_period)
 		{
 			pnf_nr_pack_and_send_timing_info(pnf_p7);
@@ -1159,7 +1183,7 @@ int pnf_p7_slot_ind(pnf_p7_t* pnf_p7, uint16_t phy_id, uint16_t sfn, uint16_t sl
 		{
 			pnf_p7->timing_info_ms_counter++;
 		}
-
+		 */
 	}
 
 	if(pthread_mutex_unlock(&(pnf_p7->mutex)) != 0)
@@ -1473,7 +1497,14 @@ uint8_t is_nr_p7_request_in_window(uint16_t sfn,uint16_t slot, const char* name,
 	uint8_t in_window = 0;
 	uint8_t timing_window = phy->_public.slot_buffer_size;
 
-	// if(recv_sfn_slot_dec <= current_sfn_slot_dec)
+	if(((recv_sfn_slot_dec >= current_sfn_slot_dec) 
+    		&& ((recv_sfn_slot_dec - current_sfn_slot_dec <= timing_window)
+           	|| (current_sfn_slot_dec + NFAPI_MAX_SFNSLOTDEC - recv_sfn_slot_dec <= timing_window)))
+      		|| ((recv_sfn_slot_dec < current_sfn_slot_dec)
+          	&& ((current_sfn_slot_dec - recv_sfn_slot_dec <= timing_window)
+            || (recv_sfn_slot_dec + NFAPI_MAX_SFNSLOTDEC - current_sfn_slot_dec <= timing_window)))) {
+    	in_window = 1;
+
 	// {
 	// 	// Need to check for wrap in window
 	// 	if(((recv_sfn_slot_dec + timing_window) % NFAPI_MAX_SFNSLOTDEC) < recv_sfn_slot_dec)
@@ -1518,15 +1549,14 @@ uint8_t is_nr_p7_request_in_window(uint16_t sfn,uint16_t slot, const char* name,
 	// 	}
 
 	// }
-	if(current_sfn_slot_dec <= recv_sfn_slot_dec + timing_window){
-		in_window = 1;
-		//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
-	}
-	else if(current_sfn_slot_dec + NFAPI_MAX_SFNSLOTDEC <= recv_sfn_slot_dec + timing_window){ //checking for wrap
-		in_window = 1;
-		//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
-	}
-  
+	// if(current_sfn_slot_dec <= recv_sfn_slot_dec + timing_window){
+	//	in_window = 1;
+	//	//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
+	// }
+	// else if(current_sfn_slot_dec + NFAPI_MAX_SFNSLOTDEC <= recv_sfn_slot_dec + timing_window){ //checking for wrap
+	//	in_window = 1;
+	//	//NFAPI_TRACE(NFAPI_TRACE_NOTE, "[%d] %s is in window %d\n", current_sfn_slot_dec, name, recv_sfn_slot_dec);
+ 	}
 	else
 	{ 	
 		
@@ -2076,6 +2106,7 @@ void pnf_handle_tx_data_request(void* pRecvMsg, int recvMsgLen, pnf_p7_t* pnf_p7
                         clock_gettime(CLOCK_MONOTONIC, &t);
 
                         //NFAPI_TRACE(NFAPI_TRACE_INFO,"%s() %ld.%09ld POPULATE TX_DATA_REQ sfn_sf:%d buffer_index:%d\n", __FUNCTION__, t.tv_sec, t.tv_nsec, sfn_slot_dec, buffer_index);
+                        NFAPI_TRACE(NFAPI_TRACE_INFO,"%s() %ld.%09ld POPULATE TX_DATA_REQ current tx sfn/slot:%d.%d p7 msg sfn/slot: %d.%d buffer_index:%d\n", __FUNCTION__, t.tv_sec, t.tv_nsec, pnf_p7->sfn,pnf_p7->slot, req->SFN, req->Slot, buffer_index);
 #if 0
                         if (0 && NFAPI_SFNSF2DEC(req->sfn_sf)%100==0) NFAPI_TRACE(NFAPI_TRACE_INFO, "%s() TX_REQ.req sfn_sf:%d pdus:%d - TX_REQ is within window\n",
                             __FUNCTION__,

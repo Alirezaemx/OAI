@@ -30,7 +30,6 @@ if [ ! -f /etc/os-release ]; then
 fi
 OS_DISTRO=$(grep "^ID=" /etc/os-release | sed "s/ID=//" | sed "s/\"//g")
 OS_RELEASE=$(grep "^VERSION_ID=" /etc/os-release | sed "s/VERSION_ID=//" | sed "s/\"//g")
-#echo "$OS_DISTRO", "$OS_RELEASE"
 case "$OS_DISTRO" in
   fedora) OS_BASEDISTRO="fedora"; INSTALLER="dnf"; CMAKE="cmake" ;;
   rhel)   OS_BASEDISTRO="fedora"; INSTALLER="dnf"; CMAKE="cmake" ;;

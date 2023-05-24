@@ -157,7 +157,7 @@ int nfapi_nr_vnf_p7_start(nfapi_vnf_p7_config_t* config)
 
     struct timespec ref_time;
 	clock_gettime(CLOCK_MONOTONIC, &ref_time);
-	uint8_t setup_done;
+	uint8_t setup_done = 0;
 	while(vnf_p7->terminate == 0)
 	{	
 		fd_set rfds;

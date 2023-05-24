@@ -253,17 +253,25 @@ void nr_schedule_response(NR_Sched_Rsp_t *Sched_INFO)
 
   if (NFAPI_MODE == NFAPI_MODE_VNF) { //If VNF, oai_nfapi functions send respective p7 msgs to PNF for which nPDUs is greater than 0
 
-    if(number_ul_tti_pdu>0)
+    if(number_ul_tti_pdu>0) {
+      UL_tti_req->sched_response_id = Sched_INFO->sched_response_id;
       oai_nfapi_ul_tti_req(UL_tti_req);
+    }
 
-    if (number_ul_dci_pdu>0)
+    if (number_ul_dci_pdu>0) {
+      UL_dci_req->sched_response_id = Sched_INFO->sched_response_id;
       oai_nfapi_ul_dci_req(UL_dci_req);
+    }
 
-    if (number_tx_data_pdu>0)
+    if (number_tx_data_pdu>0) {
+      TX_req->sched_response_id = Sched_INFO->sched_response_id;
       oai_nfapi_tx_data_req(TX_req);
+    }
 
-    if (number_dl_pdu>0)
+    if (number_dl_pdu>0) {
+      DL_req->sched_response_id = Sched_INFO->sched_response_id;
       oai_nfapi_dl_tti_req(DL_req);
+    }
   }
 
   /* this thread is done with the sched_info, decrease the reference counter */

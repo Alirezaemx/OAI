@@ -52,8 +52,6 @@ args = parser.parse_args()
 
 py_file_path = os.path.dirname(os.path.realpath(__file__))
 
-print('\n\n')
-
 if args.type == "env":
   conf_file_name = '.env'
   template_file_path = os.path.join(py_file_path, 'template', conf_file_name)
@@ -63,9 +61,11 @@ if args.type == "env":
   with open(template_file_path,"r") as f:
     conf = f.read()
     if os.environ.get('USER') is not None:
+      """
       print(f"Hi, {os.environ['USER'].split('.')[0]}")
       print(f".env file path: {final_conf_path}")
       print(f"Root folder is: {py_file_path.split('openairinterface5g')[0]}")
+      """
       conf = conf.replace("{{DEV}}", os.environ['USER'].split('.')[0])
       conf = conf.replace("{{USERID}}", str(os.getuid()))
       conf = conf.replace("{{ROOT_VOL}}", py_file_path.split('openairinterface5g')[0][:-1])
@@ -79,18 +79,17 @@ if args.type == "env":
       timeoutLimit = 5
 
 
-      inp = stdinWait(f"\nEnter Y/y within {timeoutLimit} seconds to create your own COMPOSE_PROJECT_NAME:{cpn} (present) and press <Enter>...: ", cpn, timeoutLimit, f"\nOkay, nothing entered.")
+      inp = stdinWait(f"Create your own COMPOSE_PROJECT_NAME:(default = {cpn}): ", cpn, timeoutLimit, f"\n")
       if not timeout:
-        print (f"You entered {inp}")
         if (inp=='Y' or inp=='y'):
-          cpn_inp = input(f"\nEnter your COMPOSE_PROJECT_NAME and press Enter: ")
+          cpn_inp = input(f"\nEnter your COMPOSE_PROJECT_NAME and press ENTER: ")
           if cpn_inp.strip() != '':
             cpn = cpn_inp.strip()
           else:
             print("COMPOSE_PROJECT_NAME can not be blank.")
-          print (f"\nWill be using COMPOSE_PROJECT_NAME={cpn}")
+          print (f"\nUsing COMPOSE_PROJECT_NAME={cpn}")
       else:
-        print (f"\nWill be using COMPOSE_PROJECT_NAME={cpn}")
+        print (f"\nUsing COMPOSE_PROJECT_NAME={cpn}")
 
       conf = conf.replace("{{PROJECT_NAME}}", cpn)
 

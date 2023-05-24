@@ -258,7 +258,8 @@ void rx_func(void *param)
   stop_meas(&gNB->ul_indication_stats);
 
   int tx_slot_type = nr_slot_select(cfg,frame_tx,slot_tx);
-  if ((tx_slot_type == NR_DOWNLINK_SLOT || tx_slot_type == NR_MIXED_SLOT) && NFAPI_MODE != NFAPI_MODE_PNF) {
+  //if ((tx_slot_type == NR_DOWNLINK_SLOT || tx_slot_type == NR_MIXED_SLOT) && NFAPI_MODE != NFAPI_MODE_PNF) {
+  if ((tx_slot_type == NR_DOWNLINK_SLOT || tx_slot_type == NR_MIXED_SLOT)) {
     notifiedFIFO_elt_t *res;
     processingData_L1tx_t *syncMsg;
     // Its a FIFO so it maitains the order in which the MAC fills the messages

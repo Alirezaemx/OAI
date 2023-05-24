@@ -74,7 +74,7 @@ void handle_nr_rach(NR_UL_IND_t *UL_info)
   if (frame_diff < 0) {
     frame_diff += 1024;
   }
-  bool in_timewindow = frame_diff == 0 || (frame_diff == 1 && UL_info->slot < 7);
+  bool in_timewindow = frame_diff == 0 || (frame_diff == 1 && UL_info->slot < 11);
 
   if (UL_info->rach_ind.number_of_pdus > 0 && in_timewindow) {
     LOG_A(MAC,"UL_info[Frame %d, Slot %d] Calling initiate_ra_proc RACH:SFN/SLOT:%d/%d\n",
@@ -403,7 +403,7 @@ void NR_UL_indication(NR_UL_IND_t *UL_info) {
   nfapi_nr_uci_indication_t *uci_ind = NULL;
   nfapi_nr_rx_data_indication_t *rx_ind = NULL;
   nfapi_nr_crc_indication_t *crc_ind = NULL;
-  if (get_softmodem_params()->emulate_l1)
+  if (get_softmodem_params()->emulate_l1 || NFAPI_MODE == NFAPI_MODE_VNF)
   {
     if (gnb_rach_ind_queue.num_items > 0) {
       LOG_D(NR_MAC, "gnb_rach_ind_queue size = %zu\n", gnb_rach_ind_queue.num_items);
@@ -446,7 +446,7 @@ void NR_UL_indication(NR_UL_IND_t *UL_info) {
   handle_nr_ulsch(UL_info);
   handle_nr_srs(UL_info);
 
-  if (get_softmodem_params()->emulate_l1) {
+  if (get_softmodem_params()->emulate_l1 || NFAPI_MODE == NFAPI_MODE_VNF) {
     free_unqueued_nfapi_indications(rach_ind, uci_ind, rx_ind, crc_ind);
   }
   if (NFAPI_MODE != NFAPI_MODE_PNF) {
@@ -472,16 +472,28 @@ void NR_UL_indication(NR_UL_IND_t *UL_info) {
       sched_info = allocate_sched_response();
       // clear UL DCI prior to handling ULSCH
       sched_info->UL_dci_req.numPdus = 0;
+      if(NFAPI_MODE == NFAPI_MODE_VNF) {
       gNB_dlsch_ulsch_scheduler(module_id,
+				  (UL_info->frame+((UL_info->slot>(spf-1-0))?1:0)) % 1024,
+				  (UL_info->slot+0)%spf,
+          sched_info);
+      } else {
+        gNB_dlsch_ulsch_scheduler(module_id,
                                 (UL_info->frame + ((UL_info->slot > (spf - 1 - ifi->sl_ahead)) ? 1 : 0)) % 1024,
                                 (UL_info->slot + ifi->sl_ahead) % spf,
                                 sched_info);
+      }
 
       ifi->CC_mask            = 0;
       sched_info->module_id   = module_id;
       sched_info->CC_id       = CC_id;
+      if(NFAPI_MODE == NFAPI_MODE_VNF) {
+        sched_info->frame       = (UL_info->frame + ((UL_info->slot>(spf-1-0)) ? 1 : 0)) % 1024;
+        sched_info->slot        = (UL_info->slot+0)%spf;
+      } else {
       sched_info->frame       = (UL_info->frame + ((UL_info->slot>(spf-1-ifi->sl_ahead)) ? 1 : 0)) % 1024;
       sched_info->slot        = (UL_info->slot+ifi->sl_ahead)%spf;
+      }
 
 #ifdef DUMP_FAPI
       dump_dl(sched_info);
@@ -514,6 +526,9 @@ NR_IF_Module_t *NR_IF_Module_init(int Mod_id) {
 
     nr_if_inst[Mod_id]->CC_mask=0;
     nr_if_inst[Mod_id]->NR_UL_indication = NR_UL_indication;
+    if(NFAPI_MODE == NFAPI_MODE_VNF) {
+      nr_if_inst[Mod_id]->sl_ahead = 10;
+    }
     AssertFatal(pthread_mutex_init(&nr_if_inst[Mod_id]->if_mutex,NULL)==0,
                 "allocation of nr_if_inst[%d]->if_mutex fails\n",Mod_id);
   }

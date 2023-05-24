@@ -51,16 +51,17 @@ typedef struct {
 //PHY API message types
 
 typedef enum {
-  NFAPI_NR_PHY_MSG_TYPE_PARAM_REQUEST=  0x00,
-  NFAPI_NR_PHY_MSG_TYPE_PARAM_RESPONSE= 0x01,
-  NFAPI_NR_PHY_MSG_TYPE_CONFIG_REQUEST= 0x02,
-  NFAPI_NR_PHY_MSG_TYPE_CONFIG_RESPONSE=0X03,
-  NFAPI_NR_PHY_MSG_TYPE_START_REQUEST=  0X04,
-  NFAPI_NR_PHY_MSG_TYPE_STOP_REQUEST=   0X05,
+  NFAPI_NR_PHY_MSG_TYPE_PARAM_REQUEST=  0x0108,
+  NFAPI_NR_PHY_MSG_TYPE_PARAM_RESPONSE= 0x0109,
+  NFAPI_NR_PHY_MSG_TYPE_CONFIG_REQUEST= 0x010A,
+  NFAPI_NR_PHY_MSG_TYPE_CONFIG_RESPONSE=0X010B,
+  NFAPI_NR_PHY_MSG_TYPE_START_REQUEST=  0X010C,
+  NFAPI_NR_PHY_MSG_TYPE_START_RESPONSE= 0X010D,
+  NFAPI_NR_PHY_MSG_TYPE_STOP_REQUEST=   0X010E,
+  NFAPI_NR_PHY_MSG_TYPE_STOP_RESPONSE=  0X010F,
   NFAPI_NR_PHY_MSG_TYPE_STOP_INDICATION=0X06,
   NFAPI_NR_PHY_MSG_TYPE_ERROR_INDICATION=0X07,
-  NFAPI_NR_PHY_MSG_TYPE_START_RESPONSE=0X010D,
-  NFAPI_NR_PHY_MSG_TYPE_STOP_RESPONSE=0X010F,
+
   //RESERVED 0X08 ~ 0X7F
   NFAPI_NR_PHY_MSG_TYPE_DL_TTI_REQUEST= 0X80,
   NFAPI_NR_PHY_MSG_TYPE_UL_TTI_REQUEST= 0X81,
@@ -1049,6 +1050,7 @@ typedef struct {
 
 typedef struct {
   nfapi_p7_message_header_t header;
+  int sched_response_id;
   /// System Frame Number (0-1023)
   uint16_t SFN;
   /// Slot number (0-19)
@@ -1383,6 +1385,7 @@ typedef struct
 
 typedef struct {
   nfapi_p7_message_header_t header;
+  int sched_response_id;
   uint16_t SFN; //0->1023   
   uint16_t Slot;//0->319
   uint8_t n_pdus;//Number of PDUs that are included in this message. All PDUs in the message are numbered in order. Value 0 -> 255
@@ -1427,6 +1430,7 @@ typedef struct {
 
 typedef struct {
   nfapi_p7_message_header_t header;
+  int sched_response_id;
   uint16_t SFN;
   uint16_t Slot;
   uint8_t  numPdus;
@@ -1473,6 +1477,7 @@ typedef struct
 typedef struct
 {
   nfapi_p7_message_header_t header;
+  int sched_response_id;
   uint16_t SFN;
   uint16_t Slot;
   uint16_t Number_of_PDUs;

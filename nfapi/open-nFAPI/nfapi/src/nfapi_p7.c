@@ -290,7 +290,9 @@ static uint8_t pack_dl_tti_pdsch_pdu_rel15_value(void *tlv, uint8_t **ppWritePac
           push8(value->PTRSPortIndex, ppWritePackedMsg, end) &&
           push8(value->PTRSTimeDensity, ppWritePackedMsg, end) &&
           push8(value->PTRSFreqDensity, ppWritePackedMsg, end) &&
-          push8(value->PTRSReOffset, ppWritePackedMsg, end)
+          push8(value->PTRSReOffset, ppWritePackedMsg, end) &&
+          push8(value->maintenance_parms_v3.ldpcBaseGraph, ppWritePackedMsg, end) &&
+          push32(value->maintenance_parms_v3.tbSizeLbrmBytes, ppWritePackedMsg, end)
         );
 }
 
@@ -782,7 +784,8 @@ static uint8_t pack_dl_tti_request(void *msg, uint8_t **ppWritePackedMsg, uint8_
 {
 	nfapi_nr_dl_tti_request_t *pNfapiMsg = (nfapi_nr_dl_tti_request_t*)msg;
 
-	if (!(push16(pNfapiMsg->SFN , ppWritePackedMsg, end) &&
+	if (!(push32(pNfapiMsg->sched_response_id , ppWritePackedMsg, end) &&
+    push16(pNfapiMsg->SFN , ppWritePackedMsg, end) &&
 		push16(pNfapiMsg->Slot , ppWritePackedMsg, end) &&
 		push8(pNfapiMsg->dl_tti_request_body.nGroup , ppWritePackedMsg, end) &&
 		push8(pNfapiMsg->dl_tti_request_body.nPDUs , ppWritePackedMsg, end) &&
@@ -964,7 +967,9 @@ static uint8_t pack_ul_tti_request_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu, ui
         push16(pusch_pdu->tx_direct_current_location, ppWritePackedMsg, end) &&
         push8(pusch_pdu->uplink_frequency_shift_7p5khz, ppWritePackedMsg, end) &&
         push8(pusch_pdu->start_symbol_index, ppWritePackedMsg, end) &&
-        push8(pusch_pdu->nr_of_symbols, ppWritePackedMsg, end)
+        push8(pusch_pdu->nr_of_symbols, ppWritePackedMsg, end) &&
+        push8(pusch_pdu->maintenance_parms_v3.ldpcBaseGraph, ppWritePackedMsg, end) &&
+        push32(pusch_pdu->maintenance_parms_v3.tbSizeLbrmBytes, ppWritePackedMsg, end)
         // TODO: ignoring beamforming tlv for now
       ))
     return 0;
@@ -976,6 +981,7 @@ static uint8_t pack_ul_tti_request_pusch_pdu(nfapi_nr_pusch_pdu_t *pusch_pdu, ui
       return(
               push8(pusch_pdu->pusch_data.rv_index, ppWritePackedMsg, end) &&
               push8(pusch_pdu->pusch_data.harq_process_id, ppWritePackedMsg, end) &&
+              push8(pusch_pdu->pusch_data.new_data_indicator, ppWritePackedMsg, end) &&
               push32(pusch_pdu->pusch_data.tb_size, ppWritePackedMsg, end) &&
               push16(pusch_pdu->pusch_data.num_cb, ppWritePackedMsg, end) &&
               pusharray8(pusch_pdu->pusch_data.cb_present_and_position,1,1,ppWritePackedMsg, end)
@@ -1580,7 +1586,8 @@ static uint8_t pack_ul_config_request_body_value(void *tlv, uint8_t **ppWritePac
 
 static uint8_t pack_ul_tti_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *end, nfapi_p7_codec_config_t *config) {
   nfapi_nr_ul_tti_request_t *pNfapiMsg = (nfapi_nr_ul_tti_request_t *)msg;
-
+  if (!push32(pNfapiMsg->sched_response_id , ppWritePackedMsg, end))
+    return 0;
   if (!push16(pNfapiMsg->SFN, ppWritePackedMsg, end))
     return 0;
   if (!push16(pNfapiMsg->Slot, ppWritePackedMsg, end))
@@ -1854,7 +1861,8 @@ static uint8_t pack_ul_dci_pdu_list_value(void* tlv, uint8_t **ppWritePackedMsg,
 static uint8_t pack_ul_dci_request(void *msg, uint8_t **ppWritePackedMsg, uint8_t *end, nfapi_p7_codec_config_t *config) {
   nfapi_nr_ul_dci_request_t *pNfapiMsg = (nfapi_nr_ul_dci_request_t *)msg;
 
-  if (!(push16(pNfapiMsg->SFN, ppWritePackedMsg, end) &&
+  if (!(push32(pNfapiMsg->sched_response_id, ppWritePackedMsg, end) &&
+        push16(pNfapiMsg->SFN, ppWritePackedMsg, end) &&
         push16(pNfapiMsg->Slot, ppWritePackedMsg, end) &&
         push8(pNfapiMsg->numPdus, ppWritePackedMsg, end)
        ))
@@ -1975,6 +1983,7 @@ static uint8_t pack_tx_data_request(void *msg, uint8_t **ppWritePackedMsg, uint8
   nfapi_nr_tx_data_request_t *pNfapiMsg = (nfapi_nr_tx_data_request_t *)msg;
 
   if (!(
+        push32(pNfapiMsg->sched_response_id , ppWritePackedMsg, end) &&
         push16(pNfapiMsg->SFN, ppWritePackedMsg, end) &&
         push16(pNfapiMsg->Slot, ppWritePackedMsg, end) &&
         push16(pNfapiMsg->Number_of_PDUs, ppWritePackedMsg, end)
@@ -3489,6 +3498,7 @@ int nfapi_nr_p7_message_pack(void *pMessageBuf, void *pPackedBuf, uint32_t packe
 
 		case NFAPI_NR_PHY_MSG_TYPE_SLOT_INDICATION:
 			result = pack_nr_slot_indication(pMessageHeader, &pWritePackedMessage, end, config);
+      		break;
 
 		case NFAPI_NR_PHY_MSG_TYPE_RX_DATA_INDICATION:
 			result = pack_nr_rx_data_indication(pMessageHeader, &pWritePackedMessage, end, config);
@@ -3843,7 +3853,9 @@ static uint8_t unpack_dl_tti_pdsch_pdu_rel15_value(void *tlv, uint8_t **ppReadPa
           pull8(ppReadPackedMsg, &value->PTRSPortIndex, end) &&
           pull8(ppReadPackedMsg, &value->PTRSTimeDensity, end) &&
           pull8(ppReadPackedMsg, &value->PTRSFreqDensity, end) &&
-          pull8(ppReadPackedMsg, &value->PTRSReOffset, end)
+          pull8(ppReadPackedMsg, &value->PTRSReOffset, end) &&
+          pull8(ppReadPackedMsg, &value->maintenance_parms_v3.ldpcBaseGraph, end) &&
+          pull32(ppReadPackedMsg, &value->maintenance_parms_v3.tbSizeLbrmBytes, end)
         );
 }
 
@@ -4470,7 +4482,8 @@ static uint8_t unpack_dl_config_request_body_value(void *tlv, uint8_t **ppReadPa
 static uint8_t unpack_dl_tti_request(uint8_t **ppReadPackedMsg, uint8_t *end, void *msg, nfapi_p7_codec_config_t *config) {
   nfapi_nr_dl_tti_request_t *pNfapiMsg = (nfapi_nr_dl_tti_request_t *)msg;
 
-  if (!(pull16(ppReadPackedMsg,&pNfapiMsg->SFN, end) &&
+  if (!(pull32(ppReadPackedMsg, (uint32_t *)&pNfapiMsg->sched_response_id, end) &&
+        pull16(ppReadPackedMsg,&pNfapiMsg->SFN, end) &&
         pull16(ppReadPackedMsg, &pNfapiMsg->Slot, end) &&
         pull8(ppReadPackedMsg, &pNfapiMsg->dl_tti_request_body.nGroup, end) &&
         pull8(ppReadPackedMsg, &pNfapiMsg->dl_tti_request_body.nPDUs, end) &&
@@ -4585,7 +4598,9 @@ static uint8_t unpack_ul_tti_request_pusch_pdu(void *tlv, uint8_t **ppReadPacked
         pull16(ppReadPackedMsg, &pusch_pdu->tx_direct_current_location, end) &&
         pull8(ppReadPackedMsg, &pusch_pdu->uplink_frequency_shift_7p5khz, end) &&
         pull8(ppReadPackedMsg, &pusch_pdu->start_symbol_index, end) &&
-        pull8(ppReadPackedMsg, &pusch_pdu->nr_of_symbols, end)
+        pull8(ppReadPackedMsg, &pusch_pdu->nr_of_symbols, end) &&
+        pull8(ppReadPackedMsg, &pusch_pdu->maintenance_parms_v3.ldpcBaseGraph, end) &&
+        pull32(ppReadPackedMsg, &pusch_pdu->maintenance_parms_v3.tbSizeLbrmBytes, end)
         // TODO: ignoring beamforming tlv for now
       ))
     return 0;
@@ -4597,6 +4612,7 @@ static uint8_t unpack_ul_tti_request_pusch_pdu(void *tlv, uint8_t **ppReadPacked
       return(
               pull8(ppReadPackedMsg, &pusch_pdu->pusch_data.rv_index, end) &&
               pull8(ppReadPackedMsg, &pusch_pdu->pusch_data.harq_process_id, end) &&
+              pull8(ppReadPackedMsg, &pusch_pdu->pusch_data.new_data_indicator, end) &&
               pull32(ppReadPackedMsg, &pusch_pdu->pusch_data.tb_size, end) &&
               pull16(ppReadPackedMsg, &pusch_pdu->pusch_data.num_cb, end) &&
               pullarray8(ppReadPackedMsg, pusch_pdu->pusch_data.cb_present_and_position,1,1,end)
@@ -4740,7 +4756,8 @@ static uint8_t unpack_ul_tti_groups_list_value(uint8_t **ppReadPackedMsg, uint8_
 
 static uint8_t unpack_ul_tti_request(uint8_t **ppReadPackedMsg, uint8_t *end, void *msg, nfapi_p7_codec_config_t *config) {
   nfapi_nr_ul_tti_request_t *pNfapiMsg = (nfapi_nr_ul_tti_request_t *)msg;
-
+  if (!pull32(ppReadPackedMsg, (uint32_t *)&pNfapiMsg->sched_response_id, end))
+    return 0;
   if (!pull16(ppReadPackedMsg, &pNfapiMsg->SFN, end))
     return 0;
   if (!pull16(ppReadPackedMsg, &pNfapiMsg->Slot, end))
@@ -5595,7 +5612,8 @@ static uint8_t unpack_ul_dci_pdu_list_value(uint8_t **ppReadPackedMsg, uint8_t *
 static uint8_t unpack_ul_dci_request(uint8_t **ppReadPackedMsg, uint8_t *end, void *msg, nfapi_p7_codec_config_t *config) {
   nfapi_nr_ul_dci_request_t *pNfapiMsg = (nfapi_nr_ul_dci_request_t *)msg;
 
-  if (!(pull16(ppReadPackedMsg, &pNfapiMsg->SFN, end) &&
+  if (!(pull32(ppReadPackedMsg, (uint32_t *)&pNfapiMsg->sched_response_id, end) &&
+        pull16(ppReadPackedMsg, &pNfapiMsg->SFN, end) &&
         pull16(ppReadPackedMsg, &pNfapiMsg->Slot, end) &&
         pull8(ppReadPackedMsg, &pNfapiMsg->numPdus, end)
        ))
@@ -5666,7 +5684,8 @@ static uint8_t unpack_tx_data_pdu_list_value(uint8_t **ppReadPackedMsg, uint8_t 
 static uint8_t unpack_tx_data_request(uint8_t **ppReadPackedMsg, uint8_t *end, void *msg, nfapi_p7_codec_config_t *config) {
   nfapi_nr_tx_data_request_t *pNfapiMsg = (nfapi_nr_tx_data_request_t *)msg;
 
-  if(!(pull16(ppReadPackedMsg, &pNfapiMsg->SFN, end) &&
+  if(!(pull32(ppReadPackedMsg, (uint32_t *)&pNfapiMsg->sched_response_id, end) &&
+       pull16(ppReadPackedMsg, &pNfapiMsg->SFN, end) &&
        pull16(ppReadPackedMsg, &pNfapiMsg->Slot, end) &&
        pull16(ppReadPackedMsg, &pNfapiMsg->Number_of_PDUs, end)))
     return 0;
