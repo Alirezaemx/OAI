@@ -276,6 +276,21 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
         dl_rrc->gNB_DU_ue_id,
         dl_rrc->srb_id);
 
+  gNB_MAC_INST *mac = RC.nrmac[0];
+  pthread_mutex_lock(&mac->sched_lock);
+  NR_UE_info_t *UE = find_nr_UE(&mac->UE_info, dl_rrc->gNB_DU_ue_id);
+  if (UE == NULL) {
+    LOG_E(MAC, "ERROR: unknown UE with RNTI %04x, ignoring DL RRC Message Transfer\n", dl_rrc->gNB_DU_ue_id);
+    pthread_mutex_unlock(&mac->sched_lock);
+    return;
+  }
+  if (UE->cu_ue_id == (uint32_t)-1) {
+    UE->cu_ue_id = dl_rrc->gNB_CU_ue_id;
+    LOG_I(MAC, "Storing CU UE ID %d for UE with RNTI %04x\n", UE->cu_ue_id, UE->rnti);
+  }
+  AssertFatal(dl_rrc->old_gNB_DU_ue_id == NULL, "changing RNTI not implemented yet\n");
+  pthread_mutex_unlock(&mac->sched_lock);
+
   /* the DU ue id is the RNTI */
   nr_rlc_srb_recv_sdu(dl_rrc->gNB_DU_ue_id, dl_rrc->srb_id, dl_rrc->rrc_container, dl_rrc->rrc_container_length);
 }

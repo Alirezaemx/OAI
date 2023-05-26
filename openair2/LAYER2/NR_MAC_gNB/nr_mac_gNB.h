@@ -671,6 +671,7 @@ typedef struct nr_mac_rrc_ul_if_s {
 /*! \brief UE list used by gNB to order UEs/CC for scheduling*/
 typedef struct {
   rnti_t rnti;
+  uint32_t cu_ue_id;
   uid_t uid; // unique ID of this UE
   uint32_t ue_cu_id; // used when forwarding messages
   /// scheduling control info

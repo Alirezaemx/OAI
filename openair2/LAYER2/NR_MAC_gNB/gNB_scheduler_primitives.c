@@ -2315,6 +2315,7 @@ NR_UE_info_t *add_new_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rntiP, NR_CellGroupConf
   }
 
   UE->rnti = rntiP;
+  UE->cu_ue_id = -1;
   UE->uid = uid_linear_allocator_new(&UE_info->uid_allocator);
   UE->CellGroup = CellGroup;
 
