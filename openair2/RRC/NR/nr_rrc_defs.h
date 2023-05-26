@@ -279,6 +279,8 @@ typedef struct gNB_RRC_UE_s {
   NR_UE_STATE_t                      StatusRrc;
   rnti_t                             rnti;
   uint64_t                           random_ue_identity;
+  // ID used locally by DU. The CU uses gNB_ue_ngap_id as identifier
+  uint32_t du_ue_id;
 
   /* Information from UE RRC Setup Request */
   NR_UE_S_TMSI                       Initialue_identity_5g_s_TMSI;
@@ -288,9 +290,6 @@ typedef struct gNB_RRC_UE_s {
 
   /* Information from UE RRCReestablishmentRequest */
   NR_ReestablishmentCause_t          reestablishment_cause;
-
-  /* UE id for initial connection to S1AP */
-  uint16_t                           ue_initial_id;
 
   /* Information from S1AP initial_context_setup_req */
   uint32_t                           gNB_ue_s1ap_id :24;
