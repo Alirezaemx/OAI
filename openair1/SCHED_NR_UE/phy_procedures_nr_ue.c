@@ -652,10 +652,12 @@ int nr_ue_pdsch_procedures(PHY_VARS_NR_UE *ue,
 
       stop_meas(&ue->dlsch_llr_stats_parallelization[slot]);
       if (cpumeas(CPUMEAS_GETSTATE))
-        LOG_D(PHY, "[AbsSFN %d.%d] LLR Computation Symbol %d %5.2f \n",frame_rx,nr_slot_rx,m,ue->dlsch_llr_stats_parallelization[slot].p_time/(cpuf*1000.0));
-      if(first_symbol_flag) {
-        proc->first_symbol_available = 1;
-      }
+        LOG_D(PHY,
+              "[AbsSFN %d.%d] LLR Computation Symbol %d %5.2f \n",
+              frame_rx,
+              nr_slot_rx,
+              m,
+              ue->dlsch_llr_stats_parallelization[slot].p_time / (cpuf * 1000.0));
     } // CRNTI active
     stop_meas(&ue->rx_pdsch_stats);
   }

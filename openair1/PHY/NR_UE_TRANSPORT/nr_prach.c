@@ -436,7 +436,7 @@ int32_t generate_nr_prach(PHY_VARS_NR_UE *ue, uint8_t gNB_id, int frame, uint8_t
         // here we have | empty  | Prach | empty | empty | empty |
         memcpy(prach2 + dftlen, prach2, (dftlen << 2));
         // here we have | empty  | Prach | Prach | empty | empty |
-        memcpy(prach2 + dftlen, prach2, (dftlen << 3));
+        memcpy(prach2 + dftlen *2, prach2, (dftlen << 3));
         // here we have | empty  | Prach | Prach | Prach | Prach |
         memcpy(prach, prach + dftlen * 4, (Ncp << 2));
         // here we have | Prefix | Prach | Prach | Prach | Prach |
@@ -452,56 +452,7 @@ int32_t generate_nr_prach(PHY_VARS_NR_UE *ue, uint8_t gNB_id, int frame, uint8_t
         // here we have | empty  | Prach | empty |
         memcpy(prach2 + dftlen, prach2, (dftlen << 2));
         // here we have | empty  | Prach | Prach |
-        memcpy(prach, prach + dftlen, (Ncp << 2));
-        // here we have | Prefix | Prach | Prach |
-        prach_len = (dftlen * 2) + Ncp;
-      } else if (prach_fmt_id == 5) { // 4xdftlen
-        // here we have | empty  | Prach | empty | empty | empty |
-        memcpy(prach2 + dftlen, prach2, (dftlen << 2));
-        // here we have | empty  | Prach | Prach | empty | empty |
-        memcpy(prach2 + dftlen * 2, prach2, (dftlen << 3));
-        // here we have | empty  | Prach | Prach | Prach | Prach |
-        memcpy(prach, prach + dftlen, (Ncp << 2));
-        // here we have | Prefix | Prach | Prach | Prach | Prach |
-        prach_len = (dftlen * 4) + Ncp;
-      } else if (prach_fmt_id == 6) { // 6xdftlen
-        // here we have | empty  | Prach | empty | empty | empty | empty | empty |
-        memcpy(prach2 + dftlen, prach2, (dftlen << 2));
-        // here we have | empty  | Prach | Prach | empty | empty | empty | empty |
-        memcpy(prach2 + dftlen * 2, prach2, (dftlen << 3));
-        // here we have | empty  | Prach | Prach | Prach | Prach | empty | empty |
-        memcpy(prach2 + dftlen * 4, prach2, (dftlen << 3));
-        // here we have | empty  | Prach | Prach | Prach | Prach | Prach | Prach |
-        memcpy(prach, prach + dftlen, (Ncp << 2));
-        // here we have | Prefix | Prach | Prach | Prach | Prach | Prach | Prach |
-        prach_len = (dftlen * 6) + Ncp;
-      } else if (prach_fmt_id == 8) { // 12xdftlen
-        // here we have | empty  | Prach | empty | empty | empty | empty | empty | empty | empty | empty | empty | empty | empty |
-        memcpy(prach2 + dftlen, prach2, (dftlen << 2));
-        // here we have | empty  | Prach | Prach | empty | empty | empty | empty | empty | empty | empty | empty | empty | empty |
-        memcpy(prach2 + dftlen * 2, prach2, (dftlen << 3));
-        // here we have | empty  | Prach | Prach | Prach | Prach | empty | empty | empty | empty | empty | empty | empty | empty |
-        memcpy(prach2 + dftlen * 4, prach2, (dftlen << 3));
-        // here we have | empty  | Prach | Prach | Prach | Prach | Prach | Prach | empty | empty | empty | empty | empty | empty |
-        memcpy(prach2 + dftlen * 6, prach2, (dftlen << 2) * 6);
-        // here we have | empty  | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach |
-        memcpy(prach, prach + dftlen, (Ncp << 2));
-        // here we have | Prefix | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach | Prach |
-        prach_len = (dftlen * 12) + Ncp;
-      }
-    }
-<<<<<<< HEAD
-  } else { // short PRACH sequence
-    if (prach_fmt_id == 9) {
-      // here we have | empty  | Prach |
-      memcpy(prach, prach+dftlen, (Ncp<<2));
-      // here we have | Prefix | Prach |
-      prach_len = (dftlen*1)+Ncp;
-    } else if (prach_fmt_id == 4 || prach_fmt_id == 7) {
-      // here we have | empty  | Prach | empty |
-      memcpy(prach2+dftlen, prach2, (dftlen<<2));
-      // here we have | empty  | Prach | Prach |
-      memcpy(prach, prach+dftlen, (Ncp<<2));
+      memcpy(prach, prach+(dftlen<<1), (Ncp<<2));
       // here we have | Prefix | Prach | Prach |
       prach_len = (dftlen*2)+Ncp;
     } else if (prach_fmt_id == 5 || prach_fmt_id == 10) { // 4xdftlen

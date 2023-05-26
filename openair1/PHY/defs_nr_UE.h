@@ -643,6 +643,23 @@ typedef struct {
   notifiedFIFO_t *tx_resume_ind_fifo[NR_MAX_SLOTS_PER_FRAME];
 } PHY_VARS_NR_UE;
 
+typedef struct {
+  openair0_timestamp timestamp_tx;
+  int gNB_id;
+  /// NR slot index within frame_tx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_tx;
+  int rx_slot_type;
+  /// NR slot index within frame_rx [0 .. slots_per_frame - 1] to act upon for transmission
+  int nr_slot_rx;
+  int tx_slot_type;
+  //#endif
+  /// frame to act upon for transmission
+  int frame_tx;
+  /// frame to act upon for reception
+  int frame_rx;
+  int frame_number_4lsb;
+} UE_nr_rxtx_proc_t;
+
 typedef struct nr_phy_data_tx_s {
   NR_UE_ULSCH_t ulsch;
   NR_UE_PUCCH pucch_vars;
