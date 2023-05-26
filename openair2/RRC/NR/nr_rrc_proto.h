@@ -162,4 +162,11 @@ void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_contex
                                                  e1ap_bearer_setup_resp_t *e1ap_resp);
 
 int rrc_gNB_generate_pcch_msg(uint32_t tmsi, uint8_t paging_drx, instance_t instance, uint8_t CC_id);
+
+typedef struct deliver_dl_rrc_message_data_s {
+  gNB_RRC_INST *rrc;
+  f1ap_dl_rrc_message_t *dl_rrc;
+} deliver_dl_rrc_message_data_t;
+void rrc_deliver_dl_rrc_message(void *deliver_pdu_data, ue_id_t ue_id, int srb_id, char *buf, int size, int sdu_id);
+
 #endif
