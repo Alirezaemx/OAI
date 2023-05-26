@@ -408,7 +408,7 @@ static int rrc_gNB_generate_RRCSetup_for_RRCReestablishmentRequest(module_id_t m
   LOG_I(NR_RRC, " [RAPROC] rnti: %04x Logical Channel DL-CCCH, Generating RRCSetup (bytes %d)\n", rnti, size);
   // configure MAC
   protocol_ctxt_t ctxt = {0};
-  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, 0, GNB_FLAG_YES, rnti, 0, 0);
+  PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt, 0, GNB_FLAG_YES, ue_p->gNB_ue_ngap_id, 0, 0);
   apply_macrlc_config(rrc_instance_p, ue_context_pP, &ctxt);
 
   f1ap_dl_rrc_message_t dl_rrc = {
@@ -464,6 +464,7 @@ static void rrc_gNB_process_RRCSetupComplete(const protocol_ctxt_t *const ctxt_p
   ue_context_pP->ue_context.Srb[1].Active = 1;
   ue_context_pP->ue_context.Srb[2].Active = 0;
   ue_context_pP->ue_context.StatusRrc = NR_RRC_CONNECTED;
+  AssertFatal(ctxt_pP->rntiMaybeUEid == ue_context_pP->ue_context.gNB_ue_ngap_id, "logic bug: inconsistent IDs, must use CU UE ID (gNB_ue_ngap_id)!\n");
 
   if (get_softmodem_params()->sa) {
     rrc_gNB_send_NGAP_NAS_FIRST_REQ(ctxt_pP, ue_context_pP, rrcSetupComplete);
@@ -1618,6 +1619,7 @@ static int nr_rrc_gNB_decode_ccch(module_id_t module_id, const f1ap_initial_ul_r
       case NR_UL_CCCH_MessageType__c1_PR_rrcSetupRequest:
         LOG_D(NR_RRC, "Received RRCSetupRequest on UL-CCCH-Message (UE rnti %04x)\n", rnti);
         rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context_by_rnti(gnb_rrc_inst, rnti);
+        /* TODO this check is wrong, on different DUs there can be the same RNTI, this should not matter for us */
         if (ue_context_p != NULL) {
           LOG_W(NR_RRC, "Got RRC setup request for a already registered RNTI %x, dropping the old one and give up this rrcSetupRequest\n", ue_context_p->ue_context.rnti);
           rrc_gNB_remove_ue_context(gnb_rrc_inst, ue_context_p);
@@ -1697,7 +1699,7 @@ static int nr_rrc_gNB_decode_ccch(module_id_t module_id, const f1ap_initial_ul_r
 
           rrc_gNB_generate_RRCSetup(module_id,
                                     rnti,
-                                    rrc_gNB_get_ue_context_by_rnti(gnb_rrc_inst, rnti),
+                                    ue_context_p,
                                     msg->du2cu_rrc_container,
                                     msg->du2cu_rrc_container_length);
         }
@@ -2147,7 +2149,8 @@ int rrc_gNB_decode_dcch(const protocol_ctxt_t *const ctxt_pP,
     xer_fprint(stdout, &asn_DEF_NR_UL_DCCH_Message, (void *)ul_dcch_msg);
   }
 
-  rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context_by_rnti(gnb_rrc_inst, ctxt_pP->rntiMaybeUEid);
+  /* we look up by CU UE ID! Do NOT change back to RNTI! */
+  rrc_gNB_ue_context_t *ue_context_p = rrc_gNB_get_ue_context(gnb_rrc_inst, ctxt_pP->rntiMaybeUEid);
 
   if (ul_dcch_msg->message.present == NR_UL_DCCH_MessageType_PR_c1) {
     switch (ul_dcch_msg->message.choice.c1->present) {
@@ -2849,7 +2852,7 @@ void *rrc_gnb_task(void *args_p) {
         PROTOCOL_CTXT_SET_BY_INSTANCE(&ctxt,
                                       instance,
                                       GNB_FLAG_YES,
-                                      F1AP_UL_RRC_MESSAGE(msg_p).rnti,
+                                      F1AP_UL_RRC_MESSAGE(msg_p).gNB_CU_ue_id,
                                       0,
                                       0);
         LOG_D(NR_RRC,
