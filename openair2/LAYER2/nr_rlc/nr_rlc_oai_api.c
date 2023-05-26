@@ -425,11 +425,14 @@ rb_found:
   ctx.eNB_index = 0;
   ctx.brOption = 0;
 
+  is_enb = nr_rlc_manager_get_enb_flag(nr_rlc_ue_manager);
+
   /* used fields? */
   ctx.module_id = 0;
-  ctx.rntiMaybeUEid = ue->rnti;
+  /* CU (PDCP, RRC, SDAP) use a different ID than RNTI, so below set the CU UE
+   * ID if in gNB, else use RNTI normally */
+  ctx.rntiMaybeUEid = is_enb ? ue->cu_ue_id : ue->rnti;
 
-  is_enb = nr_rlc_manager_get_enb_flag(nr_rlc_ue_manager);
   ctx.enb_flag = is_enb;
 
   if (is_enb) {
@@ -453,8 +456,8 @@ rb_found:
 	msg = itti_alloc_new_message(TASK_RLC_ENB, 0, F1AP_UL_RRC_MESSAGE);
 	uint8_t *message_buffer = itti_malloc (TASK_RLC_ENB, TASK_DU_F1, size);
 	memcpy (message_buffer, buf, size);
-  // TODO: fill correct IDs
-	F1AP_UL_RRC_MESSAGE(msg).rnti = ue->rnti;
+        F1AP_UL_RRC_MESSAGE(msg).gNB_CU_ue_id = ue->cu_ue_id;
+	F1AP_UL_RRC_MESSAGE(msg).gNB_DU_ue_id = ue->rnti;
 	F1AP_UL_RRC_MESSAGE(msg).srb_id = rb_id;
 	F1AP_UL_RRC_MESSAGE(msg).rrc_container = message_buffer;
 	F1AP_UL_RRC_MESSAGE(msg).rrc_container_length = size;
@@ -478,6 +481,7 @@ rb_found:
     }
   }
 
+  /* UE or monolithic gNB */
   memblock = get_free_mem_block(size, __func__);
   if (memblock == NULL) {
     LOG_E(RLC, "%s:%d:%s: ERROR: get_free_mem_block failed\n", __FILE__, __LINE__, __FUNCTION__);

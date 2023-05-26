@@ -710,7 +710,11 @@ srb_found:
     MessageDef *message_p = itti_alloc_new_message(TASK_PDCP_GNB, 0, F1AP_UL_RRC_MESSAGE);
     AssertFatal(message_p != NULL, "OUT OF MEMORY\n");
     f1ap_ul_rrc_message_t *ul_rrc = &F1AP_UL_RRC_MESSAGE(message_p);
-    ul_rrc->rnti = ue->rntiMaybeUEid;
+    ul_rrc->gNB_CU_ue_id = ue->rntiMaybeUEid;
+    /* TODO: currently, we lose the gNB DU UE ID: see deliver_sdu() in
+     * nr_rlc_oai_api.c, because we simply don't store it (only the
+     * rntiMaybeUEid, which we chose to be the CU UO ID) */
+    ul_rrc->gNB_DU_ue_id = 0;
     ul_rrc->srb_id = srb_id;
     ul_rrc->rrc_container = malloc(size);
     AssertFatal(ul_rrc->rrc_container != NULL, "OUT OF MEMORY\n");
