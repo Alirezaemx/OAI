@@ -63,64 +63,60 @@
 
 extern RAN_CONTEXT_t RC;
 
-  // Note the 2 scs values in the table names represent resp. scs_common and pdcch_scs
-/// LUT for the number of symbols in the coreset indexed by coreset index (4 MSB rmsi_pdcch_config)
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_15_15[15] = {2,2,2,3,3,3,1,1,2,2,3,3,1,2,3};
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_15_30[14] = {2,2,2,2,3,3,3,3,1,1,2,2,3,3};
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_30_15_b40Mhz[9] = {1,1,2,2,3,3,1,2,3};
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_30_15_a40Mhz[9] = {1,2,3,1,1,2,2,3,3};
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_30_30_b40Mhz[16] = {2,2,2,2,2,3,3,3,3,3,1,1,1,2,2,2}; // below 40Mhz bw
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_30_30_a40Mhz[10] = {2,2,3,3,1,1,2,2,3,3}; // above 40Mhz bw
-uint8_t nr_coreset_nsymb_pdcch_type_0_scs_120_60[12] = {1,1,2,2,3,3,1,2,1,1,1,1};
-
-/// LUT for the number of RBs in the coreset indexed by coreset index
-uint8_t nr_coreset_rb_offset_pdcch_type_0_scs_15_15[15] = {0,2,4,0,2,4,12,16,12,16,12,16,38,38,38};
-uint8_t nr_coreset_rb_offset_pdcch_type_0_scs_15_30[14] = {5,6,7,8,5,6,7,8,18,20,18,20,18,20};
-uint8_t nr_coreset_rb_offset_pdcch_type_0_scs_30_15_b40Mhz[9] = {2,6,2,6,2,6,28,28,28};
-uint8_t nr_coreset_rb_offset_pdcch_type_0_scs_30_15_a40Mhz[9] = {4,4,4,0,56,0,56,0,56};
-uint8_t nr_coreset_rb_offset_pdcch_type_0_scs_30_30_b40Mhz[16] = {0,1,2,3,4,0,1,2,3,4,12,14,16,12,14,16};
-uint8_t nr_coreset_rb_offset_pdcch_type_0_scs_30_30_a40Mhz[10] = {0,4,0,4,0,28,0,28,0,28};
-int8_t  nr_coreset_rb_offset_pdcch_type_0_scs_120_60[12] = {0,8,0,8,0,8,28,28,-1,49,-1,97};
-int8_t  nr_coreset_rb_offset_pdcch_type_0_scs_120_120[8] = {0,4,14,14,-1,24,-1,48};
-int8_t  nr_coreset_rb_offset_pdcch_type_0_scs_240_120[8] = {0,8,0,8,-1,25,-1,49};
-
-/// LUT for monitoring occasions param O indexed by ss index (4 LSB rmsi_pdcch_config)
-  // Note: scaling is used to avoid decimal values for O and M, original values commented
-uint8_t nr_ss_param_O_type_0_mux1_FR1[16] = {0,0,2,2,5,5,7,7,0,5,0,0,2,2,5,5};
-uint8_t nr_ss_param_O_type_0_mux1_FR2[14] = {0,0,5,5,5,5,0,5,5,15,15,15,0,5}; //{0,0,2.5,2.5,5,5,0,2.5,5,7.5,7.5,7.5,0,5}
-uint8_t nr_ss_scale_O_mux1_FR2[14] = {0,0,1,1,0,0,0,1,0,1,1,1,0,0};
-
-/// LUT for number of SS sets per slot indexed by ss index
-uint8_t nr_ss_sets_per_slot_type_0_FR1[16] = {1,2,1,2,1,2,1,2,1,1,1,1,1,1,1,1};
-uint8_t nr_ss_sets_per_slot_type_0_FR2[14] = {1,2,1,2,1,2,2,2,2,1,2,2,1,1};
-
-/// LUT for monitoring occasions param M indexed by ss index
-uint8_t nr_ss_param_M_type_0_mux1_FR1[16] = {1,1,1,1,1,1,1,1,2,2,1,1,1,1,1,1}; //{1,0.5,1,0.5,1,0.5,1,0.5,2,2,1,1,1,1,1,1}
-uint8_t nr_ss_scale_M_mux1_FR1[16] = {0,1,0,1,0,1,0,1,0,0,0,0,0,0,0,0};
-uint8_t nr_ss_param_M_type_0_mux1_FR2[14] = {1,1,1,1,1,1,1,1,1,1,1,1,2,2}; //{1,0.5,1,0.5,1,0.5,0.5,0.5,0.5,1,0.5,0.5,2,2}
-uint8_t nr_ss_scale_M_mux1_FR2[14] = {0,1,0,1,0,1,1,1,1,0,1,1,0,0};
-
-/// LUT for SS first symbol index indexed by ss index
-uint8_t nr_ss_first_symb_idx_type_0_mux1_FR1[8] = {0,0,1,2,1,2,1,2};
-  // Mux pattern type 2
-uint8_t nr_ss_first_symb_idx_scs_120_60_mux2[4] = {0,1,6,7};
-uint8_t nr_ss_first_symb_idx_scs_240_120_set1_mux2[6] = {0,1,2,3,0,1};
-  // Mux pattern type 3
-uint8_t nr_ss_first_symb_idx_scs_120_120_mux3[4] = {4,8,2,6};
-
 // CQI TABLES (10 times the value in 214 to adequately compare with R)
 // Table 1 (38.214 5.2.2.1-2)
-uint16_t cqi_table1[16][2] = {{0,0},{2,780},{2,1200},{2,1930},{2,3080},{2,4490},{2,6020},{4,3780},
-                              {4,4900},{4,6160},{6,4660},{6,5670},{6,6660},{6,7720},{6,8730},{6,9480}};
+static const uint16_t cqi_table1[16][2] = {{0, 0},
+                                           {2, 780},
+                                           {2, 1200},
+                                           {2, 1930},
+                                           {2, 3080},
+                                           {2, 4490},
+                                           {2, 6020},
+                                           {4, 3780},
+                                           {4, 4900},
+                                           {4, 6160},
+                                           {6, 4660},
+                                           {6, 5670},
+                                           {6, 6660},
+                                           {6, 7720},
+                                           {6, 8730},
+                                           {6, 9480}};
 
 // Table 2 (38.214 5.2.2.1-3)
-uint16_t cqi_table2[16][2] = {{0,0},{2,780},{2,1930},{2,4490},{4,3780},{4,4900},{4,6160},{6,4660},
-                              {6,5670},{6,6660},{6,7720},{6,8730},{8,7110},{8,7970},{8,8850},{8,9480}};
+static const uint16_t cqi_table2[16][2] = {{0, 0},
+                                           {2, 780},
+                                           {2, 1930},
+                                           {2, 4490},
+                                           {4, 3780},
+                                           {4, 4900},
+                                           {4, 6160},
+                                           {6, 4660},
+                                           {6, 5670},
+                                           {6, 6660},
+                                           {6, 7720},
+                                           {6, 8730},
+                                           {8, 7110},
+                                           {8, 7970},
+                                           {8, 8850},
+                                           {8, 9480}};
 
 // Table 2 (38.214 5.2.2.1-4)
-uint16_t cqi_table3[16][2] = {{0,0},{2,300},{2,500},{2,780},{2,1200},{2,1930},{2,3080},{2,4490},
-                              {2,6020},{4,3780},{4,4900},{4,6160},{6,4660},{6,5670},{6,6660},{6,7720}};
-
+static const uint16_t cqi_table3[16][2] = {{0, 0},
+                                           {2, 300},
+                                           {2, 500},
+                                           {2, 780},
+                                           {2, 1200},
+                                           {2, 1930},
+                                           {2, 3080},
+                                           {2, 4490},
+                                           {2, 6020},
+                                           {4, 3780},
+                                           {4, 4900},
+                                           {4, 6160},
+                                           {6, 4660},
+                                           {6, 5670},
+                                           {6, 6660},
+                                           {6, 7720}};
 
 uint8_t get_dl_nrOfLayers(const NR_UE_sched_ctrl_t *sched_ctrl,
                           const nr_dci_format_t dci_format) {
@@ -417,31 +413,31 @@ int find_pdcch_candidate(const gNB_MAC_INST *mac,
                          int nr_of_candidates,
                          const NR_sched_pdcch_t *pdcch,
                          const NR_ControlResourceSet_t *coreset,
-                         uint32_t Y){
-
+                         uint32_t Y)
+{
   const uint16_t *vrb_map = mac->common_channels[cc_id].vrb_map;
   const int N_ci = 0;
 
   const int N_rb = pdcch->n_rb;  // nb of rbs of coreset per symbol
   const int N_symb = coreset->duration; // nb of coreset symbols
-  const int N_regs = N_rb*N_symb; // nb of REGs per coreset
+  const int N_regs = N_rb * N_symb; // nb of REGs per coreset
   const int N_cces = N_regs / NR_NB_REG_PER_CCE; // nb of cces in coreset
   const int R = pdcch->InterleaverSize;
   const int L = pdcch->RegBundleSize;
-  const int C = R>0 ? N_regs/(L*R) : 0;
-  const int B_rb = L/N_symb; // nb of RBs occupied by each REG bundle
+  const int C = R > 0 ? N_regs / (L * R) : 0;
+  const int B_rb = L / N_symb; // nb of RBs occupied by each REG bundle
 
   // loop over all the available candidates
   // this implements TS 38.211 Sec. 7.3.2.2
-  for(int m=0; m<nr_of_candidates; m++) { // loop over candidates
+  for(int m = 0; m < nr_of_candidates; m++) { // loop over candidates
     bool taken = false; // flag if the resource for a given candidate are taken
-    int first_cce = aggregation * (( Y + CEILIDIV((m*N_cces),(aggregation*nr_of_candidates)) + N_ci ) % CEILIDIV(N_cces,aggregation));
+    int first_cce = aggregation * ((Y + ((m * N_cces) / (aggregation * nr_of_candidates)) + N_ci) % (N_cces / aggregation));
     LOG_D(NR_MAC,"Candidate %d of %d first_cce %d (L %d N_cces %d Y %d)\n", m, nr_of_candidates, first_cce, aggregation, N_cces, Y);
-    for (int j=first_cce; (j<first_cce+aggregation) && !taken; j++) { // loop over CCEs
-      for (int k=6*j/L; (k<(6*j/L+6/L)) && !taken; k++) { // loop over REG bundles
+    for (int j = first_cce; (j < first_cce + aggregation) && !taken; j++) { // loop over CCEs
+      for (int k = 6 * j / L; (k < (6 * j / L + 6 / L)) && !taken; k++) { // loop over REG bundles
         int f = cce_to_reg_interleaving(R, k, pdcch->ShiftIndex, C, L, N_regs);
-        for(int rb=0; rb<B_rb; rb++) { // loop over the RBs of the bundle
-          if(vrb_map[pdcch->BWPStart + f*B_rb + rb]&SL_to_bitmap(pdcch->StartSymbolIndex,N_symb)) {
+        for(int rb = 0; rb < B_rb; rb++) { // loop over the RBs of the bundle
+          if(vrb_map[pdcch->BWPStart + f * B_rb + rb] & SL_to_bitmap(pdcch->StartSymbolIndex,N_symb)) {
             taken = true;
             break;
           }
@@ -513,7 +509,7 @@ void fill_pdcch_vrb_map(gNB_MAC_INST *mac,
   }
 }
 
-bool multiple_2_3_5(int rb)
+static bool multiple_2_3_5(int rb)
 {
   while (rb % 2 == 0)
     rb /= 2;
@@ -2373,7 +2369,7 @@ NR_UE_info_t *add_new_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rntiP, NR_CellGroupConf
 
   reset_srs_stats(UE);
 
-  pthread_mutex_lock(&UE_info->mutex);
+  NR_SCHED_LOCK(&UE_info->mutex);
   int i;
   for(i=0; i<MAX_MOBILES_PER_GNB; i++) {
     if (UE_info->list[i] == NULL) {
@@ -2384,10 +2380,10 @@ NR_UE_info_t *add_new_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rntiP, NR_CellGroupConf
   if (i == MAX_MOBILES_PER_GNB) {
     LOG_E(NR_MAC,"Try to add UE %04x but the list is full\n", rntiP);
     delete_nr_ue_data(UE, nr_mac->common_channels, &UE_info->uid_allocator);
-    pthread_mutex_unlock(&UE_info->mutex);
+    NR_SCHED_UNLOCK(&UE_info->mutex);
     return NULL;
   }
-  pthread_mutex_unlock(&UE_info->mutex);
+  NR_SCHED_UNLOCK(&UE_info->mutex);
 
   LOG_D(NR_MAC, "Add NR rnti %x\n", rntiP);
   dump_nr_list(UE_info->list);
@@ -2491,8 +2487,11 @@ void reset_ul_harq_list(NR_UE_sched_ctrl_t *sched_ctrl) {
 
 void mac_remove_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rnti)
 {
+  /* already mutex protected */
+  NR_SCHED_ENSURE_LOCKED(&nr_mac->sched_lock);
+
   NR_UEs_t *UE_info = &nr_mac->UE_info;
-  pthread_mutex_lock(&UE_info->mutex);
+  NR_SCHED_LOCK(&UE_info->mutex);
   UE_iterator(UE_info->list, UE) {
     if (UE->rnti==rnti)
       break;
@@ -2500,7 +2499,7 @@ void mac_remove_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rnti)
 
   if (!UE) {
     LOG_W(NR_MAC,"Call to del rnti %04x, but not existing\n", rnti);
-    pthread_mutex_unlock(&UE_info->mutex);
+    NR_SCHED_UNLOCK(&UE_info->mutex);
     return;
   }
 
@@ -2510,7 +2509,7 @@ void mac_remove_nr_ue(gNB_MAC_INST *nr_mac, rnti_t rnti)
     if(UE_info->list[i] && UE_info->list[i]->rnti != rnti)
       newUEs[newListIdx++]=UE_info->list[i];
   memcpy(UE_info->list, newUEs, sizeof(UE_info->list));
-  pthread_mutex_unlock(&UE_info->mutex);
+  NR_SCHED_UNLOCK(&UE_info->mutex);
 
   delete_nr_ue_data(UE, nr_mac->common_channels, &UE_info->uid_allocator);
 }
@@ -2529,6 +2528,7 @@ uint8_t nr_get_tpc(int target, uint8_t cqi, int incr) {
 int get_pdsch_to_harq_feedback(NR_PUCCH_Config_t *pucch_Config,
                                 nr_dci_format_t dci_format,
                                 uint8_t *pdsch_to_harq_feedback) {
+  /* already mutex protected: held in nr_acknack_scheduling() */
 
   if (dci_format == NR_DL_DCI_FORMAT_1_0) {
     for (int i = 0; i < 8; i++)
@@ -2549,6 +2549,9 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
   int CC_id = 0;
   NR_UEs_t *UE_info = &RC.nrmac[Mod_idP]->UE_info;
   gNB_MAC_INST *gNB_mac = RC.nrmac[Mod_idP];
+
+  NR_SCHED_ENSURE_LOCKED(&gNB_mac->sched_lock);
+
   uint16_t *vrb_map = gNB_mac->common_channels[CC_id].vrb_map;
 
   UE_info->sched_csirs = false;
@@ -2774,7 +2777,10 @@ void nr_csirs_scheduling(int Mod_idP, frame_t frame, sub_frame_t slot, int n_slo
 
 void nr_mac_update_timers(module_id_t module_id,
                           frame_t frame,
-                          sub_frame_t slot) {
+                          sub_frame_t slot)
+{
+  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
+  NR_SCHED_ENSURE_LOCKED(&RC.nrmac[module_id]->sched_lock);
 
   NR_UEs_t *UE_info = &RC.nrmac[module_id]->UE_info;
   UE_iterator(UE_info->list, UE) {
@@ -2828,7 +2834,10 @@ void nr_mac_update_timers(module_id_t module_id,
 
 void schedule_nr_bwp_switch(module_id_t module_id,
                             frame_t frame,
-                            sub_frame_t slot) {
+                            sub_frame_t slot)
+{
+  /* already mutex protected: held in gNB_dlsch_ulsch_scheduler() */
+  NR_SCHED_ENSURE_LOCKED(&RC.nrmac[module_id]->sched_lock);
 
   NR_UEs_t *UE_info = &RC.nrmac[module_id]->UE_info;
 
@@ -2891,6 +2900,7 @@ void send_initial_ul_rrc_message(gNB_MAC_INST *mac, int rnti, const uint8_t *sdu
   LOG_W(MAC, "[RAPROC] Received SDU for CCCH length %d for UE %04x\n", sdu_len, rnti);
 
   NR_UE_info_t *UE = (NR_UE_info_t *)rawUE;
+  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
 
   uint8_t du2cu[1024];
   int encoded = encode_cellGroupConfig(UE->CellGroup, du2cu, sizeof(du2cu));
@@ -2908,6 +2918,7 @@ void send_initial_ul_rrc_message(gNB_MAC_INST *mac, int rnti, const uint8_t *sdu
 
 void prepare_initial_ul_rrc_message(gNB_MAC_INST *mac, NR_UE_info_t *UE)
 {
+  NR_SCHED_ENSURE_LOCKED(&mac->sched_lock);
   /* create this UE's initial CellGroup */
   /* Note: relying on the RRC is a hack, as we are in the DU; there should be
    * no RRC, remove in the future */

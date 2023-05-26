@@ -88,12 +88,13 @@ Some directories under `radio` contain READMEs:
 - [RFsimulator](../radio/rfsimulator/README.md)
 - [USRP](../radio/USRP/README.md)
 - [BladeRF](../radio/BLADERF/README)
-- [IQPlayer](../radio/iqplayer/DOC/iqrecordplayer_usage.md)
+- [IQPlayer](../radio/iqplayer/DOC/iqrecordplayer_usage.md), and [general documentation](./iqrecordplayer_usage.md)
 
 The other SDRs (AW2S, LimeSDR, ...) have no READMEs.
 
 ## Special-purpose libraries
 
+- OAI has two scopes, one based on Xforms, one on Qt5, described in [this README](../openair1/PHY/TOOLS/readme.md)
 - OAI comes with an integrated [telnet server](../common/utils/telnetsrv/DOC/telnethelp.md) to monitor and control
 - OAI comes with an integrated [web server](../common/utils/websrv/DOC/websrv.md)
 

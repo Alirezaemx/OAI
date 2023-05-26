@@ -631,6 +631,10 @@ int main(int argc, char **argv)
   NR_ServingCellConfig_t *scd = calloc(1,sizeof(NR_ServingCellConfig_t));
   prepare_scd(scd);
 
+  NR_UE_NR_Capability_t* UE_Capability_nr = CALLOC(1,sizeof(NR_UE_NR_Capability_t));
+  prepare_sim_uecap(UE_Capability_nr,scc,mu,
+                    N_RB_UL,0,mcs_table);
+
   // TODO do a UECAP for phy-sim
   const gNB_RrcConfigurationReq conf = {
     .pdsch_AntennaPorts = { .N1 = 1, .N2 = 1, .XP = 1 },
@@ -640,7 +644,8 @@ int main(int argc, char **argv)
     .do_SRS = 0,
     .force_256qam_off = false
   };
-  NR_CellGroupConfig_t *secondaryCellGroup = get_default_secondaryCellGroup(scc, scd, NULL, 0, 1, &conf, 0);
+
+  NR_CellGroupConfig_t *secondaryCellGroup = get_default_secondaryCellGroup(scc, scd, UE_Capability_nr, 0, 1, &conf, 0);
 
   /* RRC parameter validation for secondaryCellGroup */
   fix_scd(scd);
@@ -739,10 +744,7 @@ int main(int argc, char **argv)
   
   UE_mac->if_module = nr_ue_if_module_init(0);
 
-//  nr_rrc_mac_config_req_ue(0,0,0,rrc.carrier.mib.message.choice.mib, NULL, NULL, secondaryCellGroup);
-
   nr_ue_phy_config_request(&UE_mac->phy_config);
-
 
   unsigned char harq_pid = 0;
 
@@ -873,7 +875,7 @@ int main(int argc, char **argv)
 
   if (input_fd != NULL || n_trials == 1) max_rounds=1;
 
-  if(1<<ptrs_time_density >= nb_symb_sch)
+  if (enable_ptrs && 1 << ptrs_time_density >= nb_symb_sch)
     pdu_bit_map &= ~PUSCH_PDU_BITMAP_PUSCH_PTRS; // disable PUSCH PTRS
 
   printf("\n");

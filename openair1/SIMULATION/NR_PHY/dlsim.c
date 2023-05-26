@@ -707,7 +707,7 @@ int main(int argc, char **argv)
 
   NR_UE_NR_Capability_t* UE_Capability_nr = CALLOC(1,sizeof(NR_UE_NR_Capability_t));
   prepare_sim_uecap(UE_Capability_nr,scc,mu,
-                    N_RB_DL,g_mcsTableIdx);
+                    N_RB_DL,g_mcsTableIdx,0);
 
   // TODO do a UECAP for phy-sim
   const gNB_RrcConfigurationReq conf = {
@@ -831,6 +831,7 @@ int main(int argc, char **argv)
   PHY_vars_UE_g[0][0] = UE;
   memcpy(&UE->frame_parms,frame_parms,sizeof(NR_DL_FRAME_PARMS));
   UE->frame_parms.nb_antennas_rx = n_rx;
+  UE->frame_parms.nb_antenna_ports_gNB = n_tx;
   UE->max_ldpc_iterations = max_ldpc_iterations;
 
   if (run_initial_sync==1)
@@ -860,6 +861,7 @@ int main(int argc, char **argv)
 
   nr_l2_init_ue(NULL);
   UE_mac = get_mac_inst(0);
+  ue_init_config_request(UE_mac, mu);
 
   UE->if_inst = nr_ue_if_module_init(0);
   UE->if_inst->scheduled_response = nr_ue_scheduled_response;
@@ -887,7 +889,8 @@ int main(int argc, char **argv)
 
   //Configure UE
   NR_BCCH_BCH_Message_t *mib = get_new_MIB_NR(scc);
-  nr_rrc_mac_config_req_ue(0, 0, 0, mib->message.choice.mib, NULL, NULL, secondaryCellGroup);
+  nr_rrc_mac_config_req_mib(0, 0, mib->message.choice.mib, false);
+  nr_rrc_mac_config_req_scg(0, 0, secondaryCellGroup);
 
   nr_dcireq_t dcireq;
   nr_scheduled_response_t scheduled_response;
@@ -1009,7 +1012,10 @@ int main(int argc, char **argv)
         UE_info->UE_sched_ctrl.harq_processes[harq_pid].ndi = !(trial&1);
         UE_info->UE_sched_ctrl.harq_processes[harq_pid].round = round;
 
+        // nr_schedule_ue_spec() requires the mutex to be locked
+        NR_SCHED_LOCK(&gNB_mac->sched_lock);
         nr_schedule_ue_spec(0, frame, slot, &Sched_INFO->DL_req, &Sched_INFO->TX_req);
+        NR_SCHED_UNLOCK(&gNB_mac->sched_lock);
         Sched_INFO->module_id = 0;
         Sched_INFO->CC_id = 0;
         Sched_INFO->frame = frame;
@@ -1372,16 +1378,11 @@ int main(int argc, char **argv)
 void update_ptrs_config(NR_CellGroupConfig_t *secondaryCellGroup, uint16_t *rbSize, uint8_t *mcsIndex, int8_t *ptrs_arg)
 {
   NR_BWP_Downlink_t *bwp=secondaryCellGroup->spCellConfig->spCellConfigDedicated->downlinkBWP_ToAddModList->list.array[0];
-  int *ptrsFreqDenst = calloc(2, sizeof(long));
-  ptrsFreqDenst[0]= 25;
-  ptrsFreqDenst[1]= 115;
-  int *ptrsTimeDenst = calloc(3, sizeof(long));
-  ptrsTimeDenst[0]= 2;
-  ptrsTimeDenst[1]= 4;
-  ptrsTimeDenst[2]= 10;
+  long ptrsFreqDenst[] = {25, 115};
+  long ptrsTimeDenst[] = {2, 4, 10};
 
-  int epre_Ratio = 0;
-  int reOffset = 0;
+  long epre_Ratio = 0;
+  long reOffset = 0;
 
   if(ptrs_arg[0] ==0) {
     ptrsTimeDenst[2]= *mcsIndex -1;

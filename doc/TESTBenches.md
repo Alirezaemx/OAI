@@ -21,6 +21,7 @@
 | starsky       | 172.21.18.45    | CI-Starsky-Legacy-TDD-eNB       | eNB (B40)  | b200mini (30A3E3C)                                  |
 | carabe        | 172.21.18.47    | CI-Carabe-Legacy-FDD-OAI-LTE-UE | UE (B7UE)  | B200mini (30AE8C9)                                  |
 | nokiabox      | 172.21.19.39    | _None_                | gNB (Nokia), 5GC   | _Nokia RF integrated_                                 |
+| avra          | 172.21.16.124   | CI-Avra-Usage         | gNB (n78)          | AW2S Jaguar (192.168.80.239)                          |
 
 Note: The available resources, and their current usage, is indicated here:
 - [Lockable resources of jenkins-oai](https://jenkins-oai.eurecom.fr/lockable-resources/):
@@ -54,10 +55,11 @@ Note: The available resources, and their current usage, is indicated here:
 
 ### 5G AW2S Testbench
 
-**Purpose**: AW2S tests with Amarisoft
+**Purpose**: AW2S tests with Amarisoft UE simulator
 
-Picture: TBD
+![5G AW2S Testbench](testbenches_doc_resources/5g-aw2s-bench.png)
 
+[PDF version](testbenches_doc_resources/5g-aw2s-bench.pdf) | [LaTeX/TikZ version](testbenches_doc_resources/5g-aw2s-bench.tex) if you want to modify to reflect your setup
 
 ### 4G Testbench(es)
 
@@ -66,7 +68,6 @@ Picture: TBD
 ![4G Faraday Cage Testbench](testbenches_doc_resources/4g-faraday-bench.png)
 
 [PDF version](testbenches_doc_resources/4g-faraday-bench.pdf) | [LaTeX/TikZ version](testbenches_doc_resources/4g-faraday-bench.tex) if you want to modify to reflect your setup
-
 
 ## Pipelines
 
@@ -81,7 +82,10 @@ Webhook
 - [RAN-gNB-N300-Timing-Phytest-LDPC](https://jenkins-oai.eurecom.fr/view/RAN/job/RAN-gNB-N300-Timing-Phytest-LDPC/)
   - caracal + N310
   - pure performance test through phy-test scheduler, see command line for more details
-- [RAN-L2-Sim-Test-5G](https://jenkins-oai.eurecom.fr/job/RAN-L2-Sim-Test-4G/)
+- [RAN-Interop-F1](https://jenkins-oai.eurecom.fr/job/RAN-Interop-F1/)
+  - ofqot (DU, 1x UE)
+  - F1 interoperability testing: sets up connection to Accelleran CU, UE connection and connectivity test
+- [RAN-L2-Sim-Test-4G](https://jenkins-oai.eurecom.fr/job/RAN-L2-Sim-Test-4G/)
   - obelix (eNB, 1x UE, OAI EPC)
   - L2simulator: skips physical layer and uses proxy between eNB and UE
 - [RAN-L2-Sim-Test-5G](https://jenkins-oai.eurecom.fr/job/RAN-L2-Sim-Test-5G/)
@@ -91,7 +95,7 @@ Webhook
   - hutch + B210, nano w/ ltebox + 2x UE
   - tests RRC inactivity timers, different bandwidths
 - [RAN-LTE-TDD-2x2-Container](https://jenkins-oai.eurecom.fr/view/RAN/job/RAN-LTE-TDD-2x2-Container/)
-  - obelix + N310, porcepix, quectel
+  - obelix + N310, porcepix, nrmodule2 + Quectel
   - TM1 and TM2 test
 - [RAN-LTE-TDD-LTEBOX-Container](https://jenkins-oai.eurecom.fr/job/RAN-LTE-TDD-LTEBOX-Container/)
   - starsky + B210, nano w/ ltebox + 2x UE
@@ -110,10 +114,14 @@ Webhook
   - uses RFsimulator, TDD 40MHz, FDD 40MHz, F1 split
 - [RAN-RHEL8-Cluster-Image-Builder](https://jenkins-oai.eurecom.fr/job/RAN-RHEL8-Cluster-Image-Builder/)
   - cluster (`Asterix-OC-oaicicd-session` resource): RHEL 8 image build using the OpenShift Cluster
+- [RAN-SA-AW2S-CN5G](https://jenkins-oai.eurecom.fr/job/RAN-SA-AW2S-CN5G/)
+  - 5G-NR SA test setup: avra(RHEL9.1) + AW2S, amariue, OAI CN5G
+  - uses OpenShift cluster for CN deployment and container images for gNB deployment
+  - multi UE testing
 - [RAN-SA-B200-Module-SABOX-Container](https://jenkins-oai.eurecom.fr/job/RAN-SA-B200-Module-SABOX-Container/)
   - ofqot + B200, idefix + Quectel, nepes w/ sabox
   - basic SA test (20 MHz TDD), F1, reestablishment, ...
-- [RAN-Ubuntu20-Image-Builder](https://jenkins-oai.eurecom.fr/job/RAN-Ubuntu18-Image-Builder/)
+- [RAN-Ubuntu18-Image-Builder](https://jenkins-oai.eurecom.fr/job/RAN-Ubuntu18-Image-Builder/)
   - obelix: Ubuntu 20 image build using docker (Note: builds U20 images while pipeline is named U18!)
 
 ### RAN-CI-NSA-Trigger

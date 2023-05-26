@@ -150,54 +150,57 @@ const initial_pucch_resource_t initial_pucch_resource[16] = {
 /* 15  */ {  1,       0,                 14,                   0,            4,       {    0,   3,    6,    9  }   },
 };
 
-
-void nr_ue_init_mac(module_id_t module_idP) {
-  int i;
-
-  NR_UE_MAC_INST_t *mac = get_mac_inst(module_idP);
-  // default values as deined in 38.331 sec 9.2.2
+void nr_ue_init_mac(module_id_t module_idP)
+{
   LOG_I(NR_MAC, "[UE%d] Applying default macMainConfig\n", module_idP);
-  //mac->scheduling_info.macConfig=NULL;
+  NR_UE_MAC_INST_t *mac = get_mac_inst(module_idP);
+  nr_ue_mac_default_configs(mac);
+  mac->first_sync_frame = -1;
+  mac->get_sib1 = false;
+  mac->phy_config_request_sent = false;
+  mac->state = UE_NOT_SYNC;
+}
+
+void nr_ue_mac_default_configs(NR_UE_MAC_INST_t *mac)
+{
+  // default values as defined in 38.331 sec 9.2.2
   mac->scheduling_info.retxBSR_Timer = NR_BSR_Config__retxBSR_Timer_sf10240;
   mac->scheduling_info.periodicBSR_Timer = NR_BSR_Config__periodicBSR_Timer_infinity;
-//  mac->scheduling_info.periodicPHR_Timer = NR_MAC_MainConfig__phr_Config__setup__periodicPHR_Timer_sf20;
-//  mac->scheduling_info.prohibitPHR_Timer = NR_MAC_MainConfig__phr_Config__setup__prohibitPHR_Timer_sf20;
-//  mac->scheduling_info.PathlossChange_db = NR_MAC_MainConfig__phr_Config__setup__dl_PathlossChange_dB1;
-//  mac->PHR_state = NR_MAC_MainConfig__phr_Config_PR_setup;
   mac->scheduling_info.SR_COUNTER = 0;
   mac->scheduling_info.sr_ProhibitTimer = 0;
   mac->scheduling_info.sr_ProhibitTimer_Running = 0;
-//  mac->scheduling_info.maxHARQ_Tx = NR_MAC_MainConfig__ul_SCH_Config__maxHARQ_Tx_n5;
-//  mac->scheduling_info.ttiBundling = 0;
-//  mac->scheduling_info.extendedBSR_Sizes_r10 = 0;
-//  mac->scheduling_info.extendedPHR_r10 = 0;
-//  mac->scheduling_info.drx_config = NULL;
-//  mac->scheduling_info.phr_config = NULL;
-  // set init value 0xFFFF, make sure periodic timer and retx time counters are NOT active, after bsr transmission set the value configured by the NW.
+
+  // set init value 0xFFFF, make sure periodic timer and retx time counters are NOT active, after bsr transmission set the value
+  // configured by the NW.
   mac->scheduling_info.periodicBSR_SF = MAC_UE_BSR_TIMER_NOT_RUNNING;
   mac->scheduling_info.retxBSR_SF = MAC_UE_BSR_TIMER_NOT_RUNNING;
   mac->BSR_reporting_active = BSR_TRIGGER_NONE;
-//  mac->scheduling_info.periodicPHR_SF = nr_get_sf_perioidicPHR_Timer(mac->scheduling_info.periodicPHR_Timer);
-//  mac->scheduling_info.prohibitPHR_SF = nr_get_sf_prohibitPHR_Timer(mac->scheduling_info.prohibitPHR_Timer);
-//  mac->scheduling_info.PathlossChange_db = nr_get_db_dl_PathlossChange(mac->scheduling_info.PathlossChange);
-//  mac->PHR_reporting_active = 0;
 
-  for (i = 0; i < NR_MAX_NUM_LCID; i++) {
-    LOG_D(NR_MAC, "[UE%d] Applying default logical channel config for LCGID %d\n",
-                 module_idP, i);
+  mac->first_sync_frame = -1;
+  mac->get_sib1 = false;
+  mac->phy_config_request_sent = false;
+  mac->state = UE_NOT_SYNC;
+  memset(&mac->ssb_measurements, 0, sizeof(mac->ssb_measurements));
+
+  for (int i = 0; i < NR_MAX_NUM_LCID; i++) {
+    LOG_D(NR_MAC, "Applying default logical channel config for LCGID %d\n", i);
     mac->scheduling_info.Bj[i] = -1;
     mac->scheduling_info.bucket_size[i] = -1;
 
-    if (i < UL_SCH_LCID_DTCH) {   // initialize all control channels lcgid to 0
+    if (i < UL_SCH_LCID_DTCH) { // initialize all control channels lcgid to 0
       mac->scheduling_info.LCGID[i] = 0;
-    } else {    // initialize all the data channels lcgid to 1
+    } else { // initialize all the data channels lcgid to 1
       mac->scheduling_info.LCGID[i] = 1;
     }
 
     mac->scheduling_info.LCID_status[i] = LCID_EMPTY;
     mac->scheduling_info.LCID_buffer_remain[i] = 0;
-    for (int i=0;i<NR_MAX_HARQ_PROCESSES;i++) mac->first_ul_tx[i]=1;
+    for (int k = 0; k < NR_MAX_HARQ_PROCESSES; k++)
+      mac->first_ul_tx[k] = 1;
   }
+
+  memset(&mac->ssb_measurements, 0, sizeof(mac->ssb_measurements));
+  memset(&mac->ul_time_alignment, 0, sizeof(mac->ul_time_alignment));
 }
 
 NR_BWP_DownlinkCommon_t *get_bwp_downlink_common(NR_UE_MAC_INST_t *mac, NR_BWP_Id_t dl_bwp_id) {
@@ -316,7 +319,7 @@ int8_t nr_ue_decode_mib(module_id_t module_id,
     else
       ssb_sc_offset_norm = ssb_subcarrier_offset;
 
-    if (!mac->sib1_decoded) {
+    if (mac->get_sib1) {
       nr_ue_sib1_scheduler(module_id,
                            cc_id,
                            ssb_start_symbol,
@@ -354,8 +357,6 @@ int8_t nr_ue_decode_BCCH_DL_SCH(module_id_t module_id,
                                 uint32_t pdu_len) {
   if(ack_nack) {
     LOG_D(NR_MAC, "Decoding NR-BCCH-DL-SCH-Message (SIB1 or SI)\n");
-    NR_UE_MAC_INST_t *mac = get_mac_inst(module_id);
-    mac->sib1_decoded = true;
     nr_mac_rrc_data_ind_ue(module_id, cc_id, gNB_index, 0, 0, 0, NR_BCCH_DL_SCH, (uint8_t *) pduP, pdu_len);
   }
   else
@@ -506,7 +507,7 @@ int8_t nr_ue_process_dci(module_id_t module_id, int cc_id, uint8_t gNB_index, fr
     if (ret != -1){
 
       // Get UL config request corresponding slot_tx
-      fapi_nr_ul_config_request_t *ul_config = get_ul_config_request(mac, slot_tx);
+      fapi_nr_ul_config_request_t *ul_config = get_ul_config_request(mac, slot_tx, tda_info.k2);
 
       if (!ul_config) {
         LOG_W(MAC, "In %s: ul_config request is NULL. Probably due to unexpected UL DCI in frame.slot %d.%d. Ignoring DCI!\n", __FUNCTION__, frame, slot);
@@ -575,7 +576,7 @@ int8_t nr_ue_process_dci(module_id_t module_id, int cc_id, uint8_t gNB_index, fr
     if (ret != -1){
 
       // Get UL config request corresponding slot_tx
-      fapi_nr_ul_config_request_t *ul_config = get_ul_config_request(mac, slot_tx);
+      fapi_nr_ul_config_request_t *ul_config = get_ul_config_request(mac, slot_tx, tda_info.k2);
 
       if (!ul_config) {
         LOG_W(MAC, "In %s: ul_config request is NULL. Probably due to unexpected UL DCI in frame.slot %d.%d. Ignoring DCI!\n", __FUNCTION__, frame, slot);
@@ -665,7 +666,10 @@ int8_t nr_ue_process_dci(module_id_t module_id, int cc_id, uint8_t gNB_index, fr
       NR_Type0_PDCCH_CSS_config_t type0_PDCCH_CSS_config = mac->type0_PDCCH_CSS_config;
       mux_pattern = type0_PDCCH_CSS_config.type0_pdcch_ss_mux_pattern;
       dl_config->dl_config_list[dl_config->number_pdus].pdu_type = FAPI_NR_DL_CONFIG_TYPE_SI_DLSCH;
+      // in MIB SCS is signaled as 15or60 and 30or120
       dlsch_config_pdu_1_0->SubcarrierSpacing = mac->mib->subCarrierSpacingCommon;
+      if(mac->frequency_range == FR2)
+        dlsch_config_pdu_1_0->SubcarrierSpacing = mac->mib->subCarrierSpacingCommon + 2;
       if (pdsch_config) pdsch_config->dmrs_DownlinkForPDSCH_MappingTypeA->choice.setup->dmrs_AdditionalPosition = NULL; // For PDSCH with mapping type A, the UE shall assume dmrs-AdditionalPosition='pos2'
     } else {
       dlsch_config_pdu_1_0->SubcarrierSpacing = current_DL_BWP->scs;
@@ -2609,6 +2613,7 @@ uint8_t get_ssb_rsrp_payload(NR_UE_MAC_INST_t *mac,
       int ssbri_bits = ceil(log2(nb_ssb));
 
       int ssb_rsrp[2][nb_meas]; // the array contains index and RSRP of each SSB to be reported (nb_meas highest RSRPs)
+      memset(ssb_rsrp, 0, sizeof(ssb_rsrp));
 
       //TODO replace the following 2 lines with a function to order the nb_meas highest SSB RSRPs
       for (int i=0; i<nb_ssb; i++) {
@@ -2808,8 +2813,8 @@ uint8_t get_rsrp_diff_index(int best_rsrp,int current_rsrp) {
 
 }
 
-void nr_ue_send_sdu(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t *ul_time_alignment, int pdu_id){
-
+void nr_ue_send_sdu(nr_downlink_indication_t *dl_info, int pdu_id)
+{
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_SEND_SDU, VCD_FUNCTION_IN);
 
   LOG_D(MAC, "In %s [%d.%d] Handling DLSCH PDU...\n", __FUNCTION__, dl_info->frame, dl_info->slot);
@@ -2818,10 +2823,10 @@ void nr_ue_send_sdu(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t *u
   // it parses MAC CEs subheaders, MAC CEs, SDU subheaderds and SDUs
   switch (dl_info->rx_ind->rx_indication_body[pdu_id].pdu_type){
     case FAPI_NR_RX_PDU_TYPE_DLSCH:
-    nr_ue_process_mac_pdu(dl_info, ul_time_alignment, pdu_id);
+    nr_ue_process_mac_pdu(dl_info, pdu_id);
     break;
     case FAPI_NR_RX_PDU_TYPE_RAR:
-    nr_ue_process_rar(dl_info, ul_time_alignment, pdu_id);
+    nr_ue_process_rar(dl_info, pdu_id);
     break;
     default:
     break;
@@ -3535,8 +3540,8 @@ static uint8_t nr_extract_dci_info(NR_UE_MAC_INST_t *mac,
 //  R:    Reserved bit, set to zero.
 ////////////////////////////////
 void nr_ue_process_mac_pdu(nr_downlink_indication_t *dl_info,
-                           NR_UL_TIME_ALIGNMENT_t *ul_time_alignment,
-                           int pdu_id){
+                           int pdu_id)
+{
 
   module_id_t module_idP = dl_info->module_id;
   frame_t frameP         = dl_info->frame;
@@ -3656,11 +3661,14 @@ void nr_ue_process_mac_pdu(nr_downlink_indication_t *dl_info,
 
         const int ta = ((NR_MAC_CE_TA *)pduP)[1].TA_COMMAND;
         const int tag = ((NR_MAC_CE_TA *)pduP)[1].TAGID;
-        ul_time_alignment->apply_ta = 1;
-        ul_time_alignment->ta_command = ta; //here
+
+        NR_UL_TIME_ALIGNMENT_t *ul_time_alignment = &mac->ul_time_alignment;
         ul_time_alignment->ta_total += ta - 31;
         ul_time_alignment->tag_id = tag;
-
+        ul_time_alignment->ta_command = ta;
+        ul_time_alignment->frame = frameP;
+        ul_time_alignment->slot = slot;
+        ul_time_alignment->ta_apply = true;
         /*
         #ifdef DEBUG_HEADER_PARSING
         LOG_D(MAC, "[UE] CE %d : UE Timing Advance : %d\n", i, pduP[1]);
@@ -3943,8 +3951,8 @@ int nr_write_ce_ulsch_pdu(uint8_t *mac_ce,
 // - b buffer
 // - ulsch power offset
 // - optimize: mu_pusch, j and table_6_1_2_1_1_2_time_dom_res_alloc_A are already defined in nr_ue_procedures
-int nr_ue_process_rar(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t *ul_time_alignment, int pdu_id){
-
+int nr_ue_process_rar(nr_downlink_indication_t *dl_info, int pdu_id)
+{
   module_id_t mod_id       = dl_info->module_id;
   frame_t frame            = dl_info->frame;
   int slot                 = dl_info->slot;
@@ -4029,12 +4037,12 @@ int nr_ue_process_rar(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t 
 #endif
 
     // TA command
-    ul_time_alignment->apply_ta = 1;
+    NR_UL_TIME_ALIGNMENT_t *ul_time_alignment = &mac->ul_time_alignment;
     const int ta = rar->TA2 + (rar->TA1 << 5);
     ul_time_alignment->ta_command = 31 + ta;
     ul_time_alignment->ta_total = ta;
-    LOG_W(MAC, "received TA command %d\n", ul_time_alignment->ta_command);
-
+    ul_time_alignment->ta_apply = true;
+    LOG_W(MAC, "received TA command %d\n", 31 + ta);
 #ifdef DEBUG_RAR
     // CSI
     csi_req = (unsigned char) (rar->UL_GRANT_4 & 0x01);
@@ -4102,7 +4110,7 @@ int nr_ue_process_rar(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t 
       mod_id,
       rar_grant.Msg3_t_alloc,
       rar_grant.Msg3_f_alloc,
-      ul_time_alignment->ta_command,
+      ta_command,
       rar_grant.mcs,
       rar_grant.freq_hopping,
       tpc_command,
@@ -4120,7 +4128,7 @@ int nr_ue_process_rar(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t 
 
     if (ret != -1){
 
-      fapi_nr_ul_config_request_t *ul_config = get_ul_config_request(mac, slot_tx);
+      fapi_nr_ul_config_request_t *ul_config = get_ul_config_request(mac, slot_tx, tda_info.k2);
       uint16_t rnti = mac->crnti;
 
       if (!ul_config) {
@@ -4148,10 +4156,7 @@ int nr_ue_process_rar(nr_downlink_indication_t *dl_info, NR_UL_TIME_ALIGNMENT_t 
     }
 
   } else {
-
     ra->t_crnti = 0;
-    ul_time_alignment->ta_command = (0xffff);
-
   }
 
   return ret;

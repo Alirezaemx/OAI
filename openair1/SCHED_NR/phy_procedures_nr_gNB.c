@@ -75,18 +75,29 @@ void nr_common_signal_procedures (PHY_VARS_gNB *gNB,int frame,int slot,nfapi_nr_
   // setting the first subcarrier
   const int scs = cfg->ssb_config.scs_common.value;
   const int prb_offset = (fp->freq_range == nr_FR1) ? ssb_pdu.ssb_pdu_rel15.ssbOffsetPointA>>scs : ssb_pdu.ssb_pdu_rel15.ssbOffsetPointA>>(scs-2);
-  const int sc_offset = (fp->freq_range == nr_FR1) ? ssb_pdu.ssb_pdu_rel15.SsbSubcarrierOffset>>scs : ssb_pdu.ssb_pdu_rel15.SsbSubcarrierOffset;
+  const int sc_offset = (fp->freq_range == nr_FR1) ? ssb_pdu.ssb_pdu_rel15.SsbSubcarrierOffset >> scs
+                                                   : ssb_pdu.ssb_pdu_rel15.SsbSubcarrierOffset >> (scs - 2);
   fp->ssb_start_subcarrier = (12 * prb_offset + sc_offset);
   LOG_D(PHY, "SSB first subcarrier %d (%d,%d)\n", fp->ssb_start_subcarrier, prb_offset, sc_offset);
 
   LOG_D(PHY,"SS TX: frame %d, slot %d, start_symbol %d\n",frame,slot, ssb_start_symbol);
-  nr_generate_pss(&txdataF[0][txdataF_offset], AMP, ssb_start_symbol, cfg, fp);
-  nr_generate_sss(&txdataF[0][txdataF_offset], AMP, ssb_start_symbol, cfg, fp);
+  nr_generate_pss(&txdataF[0][txdataF_offset], gNB->TX_AMP, ssb_start_symbol, cfg, fp);
+  nr_generate_sss(&txdataF[0][txdataF_offset], gNB->TX_AMP, ssb_start_symbol, cfg, fp);
 
   if (fp->Lmax == 4)
-    nr_generate_pbch_dmrs(gNB->nr_gold_pbch_dmrs[n_hf][ssb_index&7],&txdataF[0][txdataF_offset], AMP, ssb_start_symbol, cfg, fp);
+    nr_generate_pbch_dmrs(gNB->nr_gold_pbch_dmrs[n_hf][ssb_index & 7],
+                          &txdataF[0][txdataF_offset],
+                          gNB->TX_AMP,
+                          ssb_start_symbol,
+                          cfg,
+                          fp);
   else
-    nr_generate_pbch_dmrs(gNB->nr_gold_pbch_dmrs[0][ssb_index&7],&txdataF[0][txdataF_offset], AMP, ssb_start_symbol, cfg, fp);
+    nr_generate_pbch_dmrs(gNB->nr_gold_pbch_dmrs[0][ssb_index & 7],
+                          &txdataF[0][txdataF_offset],
+                          gNB->TX_AMP,
+                          ssb_start_symbol,
+                          cfg,
+                          fp);
 
   if (T_ACTIVE(T_GNB_PHY_MIB)) {
     unsigned char bch[3];
@@ -106,9 +117,12 @@ void nr_common_signal_procedures (PHY_VARS_gNB *gNB,int frame,int slot,nfapi_nr_
   nr_generate_pbch(&ssb_pdu,
                    gNB->nr_pbch_interleaver,
                    &txdataF[0][txdataF_offset],
-                   AMP,
+                   gNB->TX_AMP,
                    ssb_start_symbol,
-                   n_hf, frame, cfg, fp);
+                   n_hf,
+                   frame,
+                   cfg,
+                   fp);
 }
 
 
@@ -169,9 +183,7 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
   
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_gNB_PDCCH_TX,1);
 
-    nr_generate_dci_top(msgTx, slot,
-			(int32_t *)&gNB->common_vars.txdataF[0][txdataF_offset],
-			AMP, fp);
+    nr_generate_dci_top(msgTx, slot, (int32_t *)&gNB->common_vars.txdataF[0][txdataF_offset], gNB->TX_AMP, fp);
 
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_gNB_PDCCH_TX,0);
   }
@@ -188,7 +200,20 @@ void phy_procedures_gNB_TX(processingData_L1tx_t *msgTx,
     if (csirs->active == 1) {
       LOG_D(PHY, "CSI-RS generation started in frame %d.%d\n",frame,slot);
       nfapi_nr_dl_tti_csi_rs_pdu_rel15_t *csi_params = &csirs->csirs_pdu.csi_rs_pdu_rel15;
-      nr_generate_csi_rs(&gNB->frame_parms, (int32_t **)gNB->common_vars.txdataF, AMP, gNB->nr_csi_info, csi_params, slot, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+      nr_generate_csi_rs(&gNB->frame_parms,
+                         (int32_t **)gNB->common_vars.txdataF,
+                         gNB->TX_AMP,
+                         gNB->nr_csi_info,
+                         csi_params,
+                         slot,
+                         NULL,
+                         NULL,
+                         NULL,
+                         NULL,
+                         NULL,
+                         NULL,
+                         NULL,
+                         NULL);
       csirs->active = 0;
     }
   }
@@ -395,9 +420,11 @@ void nr_ulsch_procedures(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx, int ULSCH
   stop_meas(&gNB->ulsch_decoding_stats);
 }
 
+
 void nr_fill_indication(PHY_VARS_gNB *gNB, int frame, int slot_rx, int ULSCH_id, uint8_t harq_pid, uint8_t crc_flag, int dtx_flag)
 {
-  pthread_mutex_lock(&gNB->UL_INFO_mutex);
+  if (!get_softmodem_params()->reorder_thread_disable) 
+    pthread_mutex_lock(&gNB->UL_INFO_mutex);
 
   NR_gNB_ULSCH_t *ulsch = &gNB->ulsch[ULSCH_id];
   NR_UL_gNB_HARQ_t *harq_process = ulsch->harq_process;
@@ -556,7 +583,8 @@ void nr_fill_indication(PHY_VARS_gNB *gNB, int frame, int slot_rx, int ULSCH_id,
 
   gNB->UL_INFO.rx_ind.number_of_pdus++;
 
-  pthread_mutex_unlock(&gNB->UL_INFO_mutex);
+  if (!get_softmodem_params()->reorder_thread_disable) 
+    pthread_mutex_unlock(&gNB->UL_INFO_mutex);
 }
 
 // Function to fill UL RB mask to be used for N0 measurements
@@ -631,7 +659,8 @@ void fill_ul_rb_mask(PHY_VARS_gNB *gNB, int frame_rx, int slot_rx) {
         nfapi_nr_srs_pdu_t *srs_pdu = &srs->srs_pdu;
         for(int symbol = 0; symbol<(1<<srs_pdu->num_symbols); symbol++) {
           for(rb = srs_pdu->bwp_start; rb < (srs_pdu->bwp_start+srs_pdu->bwp_size); rb++) {
-            gNB->rb_mask_ul[gNB->frame_parms.symbols_per_slot-srs_pdu->time_start_position-1+symbol][rb>>5] |= 1<<(rb&31);
+            gNB->rb_mask_ul[gNB->frame_parms.symbols_per_slot - srs_pdu->time_start_position - 1 + symbol][rb >> 5] |= 1U
+                                                                                                                       << (rb & 31);
           }
         }
       }

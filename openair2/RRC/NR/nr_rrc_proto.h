@@ -45,7 +45,6 @@
 #include "NR_CellGroupConfig.h"
 
 #define NR_MAX_SUPPORTED_DL_LAYERS 2
-void rrc_init_nr_srb_param(NR_LCHAN_DESC *chan);
 
 uint16_t mac_rrc_nr_data_req(const module_id_t Mod_idP,
                              const int         CC_id,
@@ -121,7 +120,7 @@ void nr_rrc_trigger(protocol_ctxt_t *ctxt, int CC_id, int frame, int subframe);
    \ *ptrsMcs Pointer to L_ptrs MCS related parameters
    \ *epre_Ratio Pointer to ep_ratio
    \ *reOffset Pointer to RE Offset Value */
-void rrc_config_dl_ptrs_params(NR_BWP_Downlink_t *bwp, int *ptrsNrb, int *ptrsMcs, int *epre_Ratio, int * reOffset);
+void rrc_config_dl_ptrs_params(NR_BWP_Downlink_t *bwp, long *ptrsNrb, long *ptrsMcs, long *epre_Ratio, long *reOffset);
 
 void nr_rrc_mac_remove_ue(rnti_t rntiP);
 void nr_rrc_mac_update_cellgroup(rnti_t rntiMaybeUEid, NR_CellGroupConfig_t *cgc);
@@ -164,8 +163,7 @@ void ue_cxt_mod_send_e1ap(MessageDef *msg,
 void ue_cxt_mod_direct(MessageDef *msg,
                        instance_t instance);
 
-void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP,
-                         rrc_gNB_ue_context_t *ue_context_pP);
+void fill_DRB_configList(const protocol_ctxt_t *const ctxt_pP, rrc_gNB_ue_context_t *ue_context_pP, uint8_t xid);
 
 void prepare_and_send_ue_context_modification_f1(rrc_gNB_ue_context_t *ue_context_p,
                                                  e1ap_bearer_setup_resp_t *e1ap_resp);
