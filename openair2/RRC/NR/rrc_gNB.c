@@ -343,7 +343,7 @@ static void rrc_gNB_generate_RRCSetup(instance_t instance,
               size,
               "[MSG] RRC Setup\n");
 
-  nr_pdcp_add_srbs(true, rnti, ue_context_pP->ue_context.SRB_configList, 0, NULL, NULL);
+  nr_pdcp_add_srbs(true, rnti, rnti, ue_context_pP->ue_context.SRB_configList, 0, NULL, NULL);
 
   f1ap_dl_rrc_message_t dl_rrc = {
     .old_gNB_DU_ue_id = 0xFFFFFF,
@@ -1022,9 +1022,10 @@ static void rrc_gNB_process_RRCReconfigurationComplete(const protocol_ctxt_t *co
     }
   }
 
-  nr_pdcp_add_srbs(ctxt_pP->enb_flag, ctxt_pP->rntiMaybeUEid, SRB_configList, (ue_p->integrity_algorithm << 4) | ue_p->ciphering_algorithm, kRRCenc, kRRCint);
+  nr_pdcp_add_srbs(ctxt_pP->enb_flag, ctxt_pP->rntiMaybeUEid, ctxt_pP->rntiMaybeUEid, SRB_configList, (ue_p->integrity_algorithm << 4) | ue_p->ciphering_algorithm, kRRCenc, kRRCint);
 
   nr_pdcp_add_drbs(ctxt_pP->enb_flag,
+                   ctxt_pP->rntiMaybeUEid,
                    ctxt_pP->rntiMaybeUEid,
                    reestablish_ue_id,
                    DRB_configList,
@@ -1188,6 +1189,7 @@ void rrc_gNB_generate_RRCReestablishment(const protocol_ctxt_t *ctxt_pP,
     for (int cnt = 0; cnt < (*SRB_configList)->list.count; cnt++) {
       if ((*SRB_configList)->list.array[cnt]->srb_Identity == 1) {
         nr_pdcp_add_srbs(ctxt_pP->enb_flag,
+                         ctxt_pP->rntiMaybeUEid,
                          ctxt_pP->rntiMaybeUEid,
                          *SRB_configList,
                          0,

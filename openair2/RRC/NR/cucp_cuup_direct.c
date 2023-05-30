@@ -153,9 +153,10 @@ static int drb_config_gtpu_create(const protocol_ctxt_t *const ctxt_p,
 
   LOG_D(NR_RRC, "Configuring PDCP DRBs/SRBs for UE %x\n", UE->rnti);
 
-  nr_pdcp_add_srbs(ctxt_p->enb_flag, ctxt_p->rntiMaybeUEid, SRB_configList, (UE->integrity_algorithm << 4) | UE->ciphering_algorithm, kRRCenc, kRRCint);
+  nr_pdcp_add_srbs(ctxt_p->enb_flag, ctxt_p->rntiMaybeUEid, ctxt_p->rntiMaybeUEid, SRB_configList, (UE->integrity_algorithm << 4) | UE->ciphering_algorithm, kRRCenc, kRRCint);
 
   nr_pdcp_add_drbs(ctxt_p->enb_flag,
+                   ctxt_p->rntiMaybeUEid,
                    ctxt_p->rntiMaybeUEid,
                    0,
                    DRB_configList,

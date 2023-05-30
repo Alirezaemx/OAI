@@ -30,6 +30,7 @@ typedef void nr_pdcp_ue_manager_t;
 
 typedef struct nr_pdcp_ue_t {
   ue_id_t rntiMaybeUEid;
+  ue_id_t secondaryUEid; /* for UE and gNB DRB: irrelevant; for gNB SRB: DU or CU UE ID */
   nr_pdcp_entity_t *srb[3];
   nr_pdcp_entity_t *drb[MAX_DRBS_PER_UE];
 } nr_pdcp_ue_t;

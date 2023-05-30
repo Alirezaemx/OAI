@@ -1888,6 +1888,7 @@ nr_rrc_ue_establish_srb2(
      // Refresh SRBs
      nr_pdcp_add_srbs(ctxt_pP->enb_flag,
                       ctxt_pP->rntiMaybeUEid,
+                      ctxt_pP->rntiMaybeUEid, /* in the gNB, PDCP needs to distinguish CU and DU UE IP; here, we don't care */
                       radioBearerConfig->srb_ToAddModList,
                       ue_rrc->cipheringAlgorithm | (ue_rrc->integrityProtAlgorithm << 4),
                       kRRCenc,
@@ -1984,6 +1985,7 @@ nr_rrc_ue_establish_srb2(
 
      // Refresh DRBs
      nr_pdcp_add_drbs(ctxt_pP->enb_flag,
+                      ctxt_pP->rntiMaybeUEid,
                       ctxt_pP->rntiMaybeUEid,
                       0,
                       radioBearerConfig->drb_ToAddModList,

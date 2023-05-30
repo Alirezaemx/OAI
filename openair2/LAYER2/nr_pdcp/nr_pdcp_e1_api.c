@@ -26,14 +26,14 @@
 
 void e1_add_drb(int is_gnb,
                 uint64_t ue_id,
+                ue_id_t secondary_ue_id,
                 struct NR_DRB_ToAddMod *s,
                 int ciphering_algorithm,
                 int integrity_algorithm,
                 unsigned char *ciphering_key,
                 unsigned char *integrity_key)
 {
-  add_drb_am(is_gnb, ue_id, 0, s, ciphering_algorithm, integrity_algorithm,
-             ciphering_key, integrity_key);
+  add_drb_am(is_gnb, ue_id, secondary_ue_id, 0, s, ciphering_algorithm, integrity_algorithm, ciphering_key, integrity_key);
   LOG_I(PDCP, "%s:%s:%d: added DRB for UE ID %ld\n", __FILE__, __FUNCTION__, __LINE__, ue_id);
 }
 
@@ -46,7 +46,7 @@ void nr_pdcp_e1_add_drbs(eNB_flag_t enb_flag,
 
   if (drb2add_list != NULL) {
     for (int i = 0; i < drb2add_list->list.count; i++) {
-      e1_add_drb(enb_flag, ue_id, drb2add_list->list.array[i],
+      e1_add_drb(enb_flag, ue_id, ue_id, drb2add_list->list.array[i],
               security_modeP & 0x0f, (security_modeP >> 4) & 0x0f,
               kUPenc, kUPint);
     }

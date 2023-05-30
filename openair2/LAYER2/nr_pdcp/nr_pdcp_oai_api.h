@@ -46,8 +46,17 @@ bool pdcp_data_ind(const protocol_ctxt_t *const  ctxt_pP,
                    const uint32_t *const srcID,
                    const uint32_t *const dstID);
 
+void nr_pdcp_add_srbs(eNB_flag_t enb_flag,
+                      ue_id_t rntiMaybeUEid,
+                      ue_id_t secondaryUEid,
+                      NR_SRB_ToAddModList_t *const srb2add_list,
+                      const uint8_t security_modeP,
+                      uint8_t *const kRRCenc,
+                      uint8_t *const kRRCint);
+
 void nr_pdcp_add_drbs(eNB_flag_t enb_flag,
                       ue_id_t rntiMaybeUEid,
+                      ue_id_t secondaryUEid,
                       ue_id_t reestablish_ue_id,
                       NR_DRB_ToAddModList_t *const drb2add_list,
                       const uint8_t security_modeP,
