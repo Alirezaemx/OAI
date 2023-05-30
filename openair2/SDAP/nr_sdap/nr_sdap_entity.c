@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include "common/utils/LATSEQ/latseq.h"
 
 typedef struct {
   nr_sdap_entity_t *sdap_entity_llist;
@@ -85,6 +86,7 @@ static bool nr_sdap_tx_entity(nr_sdap_entity_t *entity,
 
   if(!pdcp_ent_has_sdap){
     LOG_D(SDAP, "TX - DRB ID: %ld does not have SDAP\n", entity->qfi2drb_table[qfi].drb_id);
+    LATSEQ_P("D sdap.pdu--pdcp.coded", "len%u::SPbuf%u", sdu_buffer_size, sdu_buffer);
     ret = pdcp_data_req(ctxt_p,
                         srb_flag,
                         sdap_drb_id,

@@ -45,6 +45,8 @@
 #include "executables/softmodem-common.h"
 #include "../../../nfapi/oai_integration/vendor_ext.h"
 
+#include "common/utils/LATSEQ/latseq.h"
+
 ////////////////////////////////////////////////////////
 /////* DLSCH MAC PDU generation (6.1.2 TS 38.321) */////
 ////////////////////////////////////////////////////////
@@ -1213,6 +1215,7 @@ void nr_schedule_ue_spec(module_id_t module_id,
             dlsch_total_bytes += len;
             lcid_bytes += len;
             sdus += 1;
+            LATSEQ_P("D mac.coded--TODO", "len%u::RMbuf%u.fm%u.sl%u.lcid%u.hqpid%u.mcs%u.tbsize%u", len, buf-len, frame, slot, lcid, current_harq_pid, sched_pdsch->mcs, sched_pdsch->tb_size);
           }
 
           UE->mac_stats.dl.lc_bytes[lcid] += lcid_bytes;
