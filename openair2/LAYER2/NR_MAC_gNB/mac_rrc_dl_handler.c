@@ -287,6 +287,7 @@ void dl_rrc_message_transfer(const f1ap_dl_rrc_message_t *dl_rrc)
   if (UE->cu_ue_id == (uint32_t)-1) {
     UE->cu_ue_id = dl_rrc->gNB_CU_ue_id;
     LOG_I(MAC, "Storing CU UE ID %d for UE with RNTI %04x\n", UE->cu_ue_id, UE->rnti);
+    nr_rlc_set_cu_ue_id(dl_rrc->gNB_DU_ue_id, dl_rrc->gNB_CU_ue_id);
   }
   AssertFatal(dl_rrc->old_gNB_DU_ue_id == NULL, "changing RNTI not implemented yet\n");
   pthread_mutex_unlock(&mac->sched_lock);
