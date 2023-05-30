@@ -1106,3 +1106,16 @@ void nr_rlc_srb_recv_sdu(const int rnti, const logical_chan_id_t channel_id, uns
 
   nr_rlc_manager_unlock(nr_rlc_ue_manager);
 }
+
+void nr_rlc_set_cu_ue_id(int rnti, uint32_t cu_ue_id)
+{
+  nr_rlc_ue_t *ue;
+  nr_rlc_manager_lock(nr_rlc_ue_manager);
+  ue = nr_rlc_manager_get_ue(nr_rlc_ue_manager, rnti);
+  if (ue == NULL) {
+    LOG_E(RLC, "%s:%d:%s: cannot find UE %04x\n", __FILE__, __LINE__, __FUNCTION__, rnti);
+  } else {
+    ue->secondaryUEid = cu_ue_id;
+  }
+  nr_rlc_manager_unlock(nr_rlc_ue_manager);
+}

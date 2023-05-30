@@ -29,6 +29,9 @@
 
  */
 
+#ifndef NR_RLC_OAI_API_H
+#define NR_RLC_OAI_API_H
+
 #include "NR_RLC-BearerConfig.h"
 #include "NR_RLC-Config.h"
 #include "NR_LogicalChannelIdentity.h"
@@ -63,3 +66,7 @@ void nr_rlc_activate_srb0(int rnti, struct gNB_MAC_INST_s *mac, void *rawUE,
                                      const uint8_t         *sdu,
                                      sdu_size_t             sdu_len,
                                      void                  *rawUE));
+
+void nr_rlc_set_cu_ue_id(int rnti, uint32_t cu_ue_id);
+
+#endif /* NR_RLC_OAI_API_H */
