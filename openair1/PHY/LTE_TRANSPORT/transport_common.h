@@ -84,6 +84,7 @@ typedef enum { SEARCH_EXIST=0,
 typedef enum {
   SCH_IDLE=0,
   ACTIVE,
+  IN_PROC,
   CBA_ACTIVE,
   DISABLED
 } SCH_status_t;

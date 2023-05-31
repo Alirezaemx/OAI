@@ -257,38 +257,45 @@ void ue_ta_procedures(PHY_VARS_NR_UE *ue, int slot_tx, int frame_tx)
 }
 
 void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue,
-                            UE_nr_rxtx_proc_t *proc,
+                            const UE_nr_rxtx_proc_t *proc,
                             nr_phy_data_tx_t *phy_data) {
 
-  int slot_tx = proc->nr_slot_tx;
-  int frame_tx = proc->frame_tx;
-  int gNB_id = proc->gNB_id;
+  const int slot_tx = proc->nr_slot_tx;
+  const int frame_tx = proc->frame_tx;
+  const int gNB_id = proc->gNB_id;
 
   AssertFatal(ue->CC_id == 0, "Transmission on secondary CCs is not supported yet\n");
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_UE_TX,VCD_FUNCTION_IN);
 
-  for(int i=0; i< ue->frame_parms.nb_antennas_tx; ++i)
-    memset(ue->common_vars.txdataF[i], 0, sizeof(int)*14*ue->frame_parms.ofdm_symbol_size);
+  const int samplesF_per_slot = NR_SYMBOLS_PER_SLOT * ue->frame_parms.ofdm_symbol_size;
+  __attribute__((aligned(32))) c16_t txdataF_buf[ue->frame_parms.nb_antennas_tx * samplesF_per_slot];
+  memset(txdataF_buf, 0, sizeof(txdataF_buf));
+  c16_t *txdataF[ue->frame_parms.nb_antennas_tx]; /* workaround to be compatible with current txdataF usage in all tx procedures. */
+  for(int i=0; i < ue->frame_parms.nb_antennas_tx; ++i)
+    txdataF[i] = &txdataF_buf[i * samplesF_per_slot];
 
   LOG_D(PHY,"****** start TX-Chain for AbsSubframe %d.%d ******\n", frame_tx, slot_tx);
 
   start_meas(&ue->phy_proc_tx);
 
   for (uint8_t harq_pid = 0; harq_pid < NR_MAX_ULSCH_HARQ_PROCESSES; harq_pid++) {
-    if (ue->ul_harq_processes[harq_pid].status == ACTIVE)
-      nr_ue_ulsch_procedures(ue, harq_pid, frame_tx, slot_tx, gNB_id, phy_data);
+    if (ue->ul_harq_processes[harq_pid].status == ACTIVE) {
+      ue->ul_harq_processes[harq_pid].status = IN_PROC;
+      nr_ue_ulsch_procedures(ue, harq_pid, frame_tx, slot_tx, gNB_id, phy_data, (c16_t **)&txdataF);
+    }
   }
 
-  ue_srs_procedures_nr(ue, proc);
+  ue_srs_procedures_nr(ue, proc, (c16_t **)&txdataF);
 
-  pucch_procedures_ue_nr(ue, proc, phy_data);
+  pucch_procedures_ue_nr(ue, proc, phy_data, (c16_t **)&txdataF);
 
   LOG_D(PHY, "Sending Uplink data \n");
   nr_ue_pusch_common_procedures(ue,
                                 proc->nr_slot_tx,
                                 &ue->frame_parms,
-                                ue->frame_parms.nb_antennas_tx);
+                                ue->frame_parms.nb_antennas_tx,
+                                (c16_t **)txdataF);
 
   nr_ue_prach_procedures(ue, proc);
 
@@ -1215,7 +1222,7 @@ void pdsch_processing(PHY_VARS_NR_UE *ue,
 
 // todo:
 // - power control as per 38.213 ch 7.4
-void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc) {
+void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc) {
 
   int gNB_id = proc->gNB_id;
   int frame_tx = proc->frame_tx, nr_slot_tx = proc->nr_slot_tx, prach_power; // tx_amp

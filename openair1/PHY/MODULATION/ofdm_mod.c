@@ -63,7 +63,7 @@ void normal_prefix_mod(int32_t *txdataF,int32_t *txdata,uint8_t nsymb,LTE_DL_FRA
   
 }
 
-void nr_normal_prefix_mod(c16_t *txdataF, c16_t *txdata, uint8_t nsymb, NR_DL_FRAME_PARMS *frame_parms, uint32_t slot)
+void nr_normal_prefix_mod(c16_t *txdataF, c16_t *txdata, uint8_t nsymb, const NR_DL_FRAME_PARMS *frame_parms, uint32_t slot)
 {
   // This function works only slot wise. For more generic symbol generation refer nr_feptx0()
   if (frame_parms->numerology_index != 0) { // case where numerology != 0
