@@ -820,9 +820,9 @@ int main(int argc, char **argv)
           __attribute__((aligned(32))) c16_t rxdata[UE->frame_parms.nb_antennas_rx][UE->frame_parms.ofdm_symbol_size];
           __attribute__((aligned(32))) c16_t rxdataF[frame_parms->nb_antennas_rx][UE->frame_parms.ofdm_symbol_size];
           for (int aarx = 0; aarx < UE->frame_parms.nb_antennas_rx; aarx++) {
-            const int samplesPrefix = SYMBOL_HAS_LONGER_CP(i+ssb_slot*NR_SYMBOLS_PER_SLOT, frame_parms->numerology_index) ? frame_parms->nb_prefix_samples : frame_parms->nb_prefix_samples0;
+            const int samplesPrefix = SYMBOL_HAS_LONGER_CP(i+ssb_slot*NR_SYMBOLS_PER_SLOT, frame_parms->numerology_index) ? frame_parms->nb_prefix_samples0 : frame_parms->nb_prefix_samples;
             int sampleOffset = frame_parms->ofdm_symbol_size * i;
-            for (int symb = 0; symb < i; symb++) sampleOffset += (SYMBOL_HAS_LONGER_CP(symb, frame_parms->numerology_index) ? frame_parms->nb_prefix_samples : frame_parms->nb_prefix_samples0);
+            for (int symb = 0; symb < i; symb++) sampleOffset += (SYMBOL_HAS_LONGER_CP(symb, frame_parms->numerology_index) ? frame_parms->nb_prefix_samples0 : frame_parms->nb_prefix_samples);
             sampleOffset += samplesPrefix;
             memcpy(&rxdata[aarx][0], &UE->common_vars.rxdata[aarx][frame_parms->get_samples_slot_timestamp(ssb_slot, frame_parms, 0)+sampleOffset], frame_parms->ofdm_symbol_size*sizeof(c16_t));
           }

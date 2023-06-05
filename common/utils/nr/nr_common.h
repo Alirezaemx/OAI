@@ -106,7 +106,7 @@ uint32_t get_ssb_offset_to_pointA(uint32_t absoluteFrequencySSB,
                                   int ssbSubcarrierSpacing,
                                   int frequency_range);
 int get_ssb_subcarrier_offset(uint32_t absoluteFrequencySSB, uint32_t absoluteFrequencyPointA);
-#define SYMBOL_HAS_LONGER_CP(a,b) (a % (0x7 << b))
+#define SYMBOL_HAS_LONGER_CP(a,b) (!(a % (0x7 << b)))
 #define CEILIDIV(a,b) ((a+b-1)/b)
 #define ROUNDIDIV(a,b) (((a<<1)+b)/(b<<1))
 

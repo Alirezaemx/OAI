@@ -521,6 +521,7 @@ typedef struct {
   int              rx_offset;      /// Timing offset
   int              rx_offset_diff; /// Timing adjustment for ofdm symbol0 on HW USRP
   int              max_pos_fil;    /// Timing offset IIR filter
+  int              apply_timing_offset;
   int              time_sync_cell;
 
   /// Timing Advance updates variables
@@ -673,6 +674,9 @@ typedef struct nr_rxtx_thread_data_s {
   nr_phy_data_t phy_data;
   int tx_wait_for_dlsch;
   notifiedFIFO_t *txFifo;
+  openair0_timestamp writeTS;
+  int sampleShift;
+  int slot;
 } nr_rxtx_thread_data_t;
 
 typedef struct nr_ue_symb_data_s {
