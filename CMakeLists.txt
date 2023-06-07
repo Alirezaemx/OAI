@@ -508,7 +508,7 @@ add_library(CONFIG_LIB
 )
 target_link_libraries(CONFIG_LIB PRIVATE dl UTIL)
 add_library(params_libconfig MODULE ${CONFIG_ROOTDIR}/libconfig/config_libconfig.c)
-target_link_libraries(params_libconfig config)
+target_link_libraries(params_libconfig config CONFIG_LIB minimal_lib)
 # shared library loader
 set (SHLIB_LOADER_SOURCES
   ${OPENAIR_DIR}/common/utils/load_module_shlib.c
