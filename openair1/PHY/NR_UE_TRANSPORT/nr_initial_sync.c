@@ -109,11 +109,6 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_ini
   NR_UE_SSB *best_ssb = NULL;
   NR_UE_SSB *current_ssb;
 
-#ifdef DEBUG_INITIAL_SYNCH
-  LOG_I(PHY,"[UE%d] Initial sync: starting PBCH detection (rx_offset %d)\n",ue->Mod_id,
-        ue->rx_offset);
-#endif
-
   uint8_t  N_L = (frame_parms->Lmax == 4)? 4:8;
   uint8_t  N_hf = (frame_parms->Lmax == 4)? 2:1;
 
@@ -200,19 +195,16 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_ini
 char duplex_string[2][4] = {"FDD","TDD"};
 char prefix_string[2][9] = {"NORMAL","EXTENDED"};
 
-int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
-                    PHY_VARS_NR_UE *ue,
-                    int n_frames, int sa)
+nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, int n_frames, int sa)
 {
 
   int32_t sync_pos, sync_pos_frame; // k_ssb, N_ssb_crb, sync_pos2,
   int32_t metric_tdd_ncp=0;
   uint8_t phase_tdd_ncp;
-  double im, re;
   int is;
 
   NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
-  int ret=-1;
+  nr_initial_sync_t ret = {-1, 0};
   int rx_power=0; //aarx,
 
   nr_phy_data_t phy_data = {0};
@@ -277,10 +269,11 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 
         for(int n=start; n<end; n++){
           for (int ar=0; ar<fp->nb_antennas_rx; ar++) {
-            re = ((double)(((short *)ue->common_vars.rxdata[ar]))[2*n]);
-            im = ((double)(((short *)ue->common_vars.rxdata[ar]))[2*n+1]);
-            ((short *)ue->common_vars.rxdata[ar])[2*n] = (short)(round(re*cos(n*off_angle) - im*sin(n*off_angle)));
-            ((short *)ue->common_vars.rxdata[ar])[2*n+1] = (short)(round(re*sin(n*off_angle) + im*cos(n*off_angle)));
+            double im, re;
+            re = ue->common_vars.rxdata[ar][n].r;
+            im = ue->common_vars.rxdata[ar][n].i;
+            ue->common_vars.rxdata[ar][n].r = (short)(round(re * cos(n * off_angle) - im * sin(n * off_angle)));
+            ue->common_vars.rxdata[ar][n].i = (short)(round(re * sin(n * off_angle) + im * cos(n * off_angle)));
           }
         }
       }
@@ -307,7 +300,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 #endif
 
       int freq_offset_sss = 0;
-      ret = rx_sss_nr(ue, proc, &metric_tdd_ncp, &phase_tdd_ncp, &freq_offset_sss, rxdataF);
+      ret.cell_detected = rx_sss_nr(ue, proc, &metric_tdd_ncp, &phase_tdd_ncp, &freq_offset_sss, rxdataF);
 
       // digital compensation of FFO for SSB symbols
       if (ue->UE_fo_compensation){
@@ -325,23 +318,22 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 
         for(int n=start; n<end; n++){
           for (int ar=0; ar<fp->nb_antennas_rx; ar++) {
-            re = ((double)(((short *)ue->common_vars.rxdata[ar]))[2*n]);
-            im = ((double)(((short *)ue->common_vars.rxdata[ar]))[2*n+1]);
-            ((short *)ue->common_vars.rxdata[ar])[2*n] = (short)(round(re*cos(n*off_angle) - im*sin(n*off_angle)));
-            ((short *)ue->common_vars.rxdata[ar])[2*n+1] = (short)(round(re*sin(n*off_angle) + im*cos(n*off_angle)));
+            double re = ue->common_vars.rxdata[ar][n].r;
+            double im = ue->common_vars.rxdata[ar][n].i;
+            ue->common_vars.rxdata[ar][n].r = (short)(round(re * cos(n * off_angle) - im * sin(n * off_angle)));
+            ue->common_vars.rxdata[ar][n].i = (short)(round(re * sin(n * off_angle) + im * cos(n * off_angle)));
           }
         }
 
         ue->common_vars.freq_offset += freq_offset_sss;
       }
 
-      if (ret==0) { //we got sss channel
+      if (ret.cell_detected == 0) { // we got sss channel
         nr_gold_pbch(ue);
-        ret = nr_pbch_detection(proc, ue, 1, &phy_data, rxdataF);  // start pbch detection at first symbol after pss
+        ret.cell_detected = nr_pbch_detection(proc, ue, 1, &phy_data, rxdataF); // start pbch detection at first symbol after pss
       }
 
-      if (ret == 0) {
-
+      if (ret.cell_detected == 0) {
         // sync at symbol ue->symbol_offset
         // computing the offset wrt the beginning of the frame
         int mu = fp->numerology_index;
@@ -373,12 +365,12 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 
         // we also need to take into account the shift by samples_per_frame in case the if is true
         if (ue->ssb_offset < sync_pos_frame){
-          ue->rx_offset = fp->samples_per_frame - sync_pos_frame + ue->ssb_offset;
+          ret.rx_offset = fp->samples_per_frame - sync_pos_frame + ue->ssb_offset;
           ue->init_sync_frame += 1;
         }
         else
-          ue->rx_offset = ue->ssb_offset - sync_pos_frame;
-      }   
+          ret.rx_offset = ue->ssb_offset - sync_pos_frame;
+      }
 
     /*
     int nb_prefix_samples0 = fp->nb_prefix_samples0;
@@ -397,8 +389,12 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 
 
 #ifdef DEBUG_INITIAL_SYNCH
-      LOG_I(PHY,"TDD Normal prefix: CellId %d metric %d, phase %d, pbch %d\n",
-            fp->Nid_cell,metric_tdd_ncp,phase_tdd_ncp,ret);
+      LOG_I(PHY,
+            "TDD Normal prefix: CellId %d metric %d, phase %d, pbch %d\n",
+            fp->Nid_cell,
+            metric_tdd_ncp,
+            phase_tdd_ncp,
+            ret.cell_detected);
 #endif
 
       }
@@ -407,11 +403,12 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
        LOG_I(PHY,"TDD Normal prefix: SSS error condition: sync_pos %d\n", sync_pos);
 #endif
       }
-      if (ret == 0) break;
+      if (ret.cell_detected == 0)
+        break;
     }
   }
   else {
-    ret = -1;
+    ret.cell_detected = -1;
   }
 
   /* Consider this is a false detection if the offset is > 1000 Hz 
@@ -422,11 +419,11 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 	  LOG_E(HW, "Ignore MIB with high freq offset [%d Hz] estimation \n",ue->common_vars.freq_offset);
   }*/
 
-  if (ret==0) {  // PBCH found so indicate sync to higher layers and configure frame parameters
+  if (ret.cell_detected == 0) { // PBCH found so indicate sync to higher layers and configure frame parameters
 
     //#ifdef DEBUG_INITIAL_SYNCH
 
-    LOG_I(PHY, "[UE%d] In synch, rx_offset %d samples\n",ue->Mod_id, ue->rx_offset);
+    LOG_I(PHY, "[UE%d] In synch, rx_offset %d samples\n", ue->Mod_id, ret.rx_offset);
 
     //#endif
 
@@ -457,11 +454,10 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
     LOG_I(PHY,"[UE%d] Initial sync : Estimated Nid_cell %d, Frame_type %d\n",ue->Mod_id,
           frame_parms->Nid_cell,frame_parms->frame_type);
 #endif
-
   }
 
   // gain control
-  if (ret!=0) { //we are not synched, so we cannot use rssi measurement (which is based on channel estimates)
+  if (ret.cell_detected != 0) { // we are not synched, so we cannot use rssi measurement (which is based on channel estimates)
     rx_power = 0;
 
     // do a measurement on the best guess of the PSS
@@ -495,9 +491,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 #endif
 #endif
 
-  }
-  else {
-
+  } else {
 #ifndef OAI_USRP
 #ifndef OAI_BLADERF
 #ifndef OAI_LMSSDR
@@ -507,7 +501,6 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
 #endif
 #endif
 #endif
-
   }
 
   if (ue->target_Nid_cell != -1) {
@@ -515,7 +508,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
   }
 
   // if stand alone and sync on ssb do sib1 detection as part of initial sync
-  if (sa == 1 && ret == 0) {
+  if (sa == 1 && ret.cell_detected == 0) {
     nr_ue_dlsch_init(phy_data.dlsch, 1, ue->max_ldpc_iterations);
     bool dec = false;
     proc->gNB_id = 0; //FIXME
@@ -532,7 +525,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
         nr_slot_fep_init_sync(ue,
                               proc,
                               l, // the UE PHY has no notion of the symbols to be monitored in the search space
-                              is*fp->samples_per_frame+phy_pdcch_config->sfn*fp->samples_per_frame+ue->rx_offset,
+                              is * fp->samples_per_frame + phy_pdcch_config->sfn * fp->samples_per_frame + ret.rx_offset,
                               true,
                               rxdataF);
 
@@ -558,7 +551,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
             nr_slot_fep_init_sync(ue,
                                   proc,
                                   m,
-                                  is*fp->samples_per_frame+phy_pdcch_config->sfn*fp->samples_per_frame+ue->rx_offset,
+                                  is * fp->samples_per_frame + phy_pdcch_config->sfn * fp->samples_per_frame + ret.rx_offset,
                                   true,
                                   rxdataF);
           }
@@ -602,7 +595,7 @@ int nr_initial_sync(UE_nr_rxtx_proc_t *proc,
       }
     }
     if (dec == false) // sib1 not decoded
-      ret = -1;
+      ret.cell_detected = -1;
   }
   //  exit_fun("debug exit");
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_INITIAL_UE_SYNC, VCD_FUNCTION_OUT);
