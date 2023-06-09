@@ -266,8 +266,6 @@ void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue,
 
   AssertFatal(ue->CC_id == 0, "Transmission on secondary CCs is not supported yet\n");
 
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_UE_TX,VCD_FUNCTION_IN);
-
   const int samplesF_per_slot = NR_SYMBOLS_PER_SLOT * ue->frame_parms.ofdm_symbol_size;
   __attribute__((aligned(32))) c16_t txdataF_buf[ue->frame_parms.nb_antennas_tx * samplesF_per_slot];
   memset(txdataF_buf, 0, sizeof(txdataF_buf));
@@ -300,8 +298,6 @@ void phy_procedures_nrUE_TX(PHY_VARS_NR_UE *ue,
   nr_ue_prach_procedures(ue, proc);
 
   LOG_D(PHY,"****** end TX-Chain for AbsSubframe %d.%d ******\n", proc->frame_tx, proc->nr_slot_tx);
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_UE_TX, VCD_FUNCTION_OUT);
   stop_meas(&ue->phy_proc_tx);
 }
 
@@ -425,8 +421,6 @@ static bool nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
   }
 
  return ret;
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PBCH_PROCEDURES, VCD_FUNCTION_OUT);
 }
 
 unsigned int nr_get_tx_amp(int power_dBm, int power_max_dBm, int N_RB_UL, int nb_rb)
@@ -718,7 +712,7 @@ bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
   if (is_cw0_active != ACTIVE && is_cw1_active != ACTIVE) {
     // don't wait anymore
     const int ack_nack_slot = (proc->nr_slot_rx + dlsch[0].dlsch_config.k1_feedback) % ue->frame_parms.slots_per_frame;
-    send_slot_ind(ue->tx_resume_ind_fifo[ack_nack_slot], proc->nr_slot_rx);
+    send_slot_ind(&ue->tx_resume_ind_fifo[ack_nack_slot], proc->nr_slot_rx);
     return false;
   }
 
@@ -854,7 +848,8 @@ bool nr_ue_dlsch_procedures(PHY_VARS_NR_UE *ue,
 
   // DLSCH decoding finished! don't wait anymore
   const int ack_nack_slot = (proc->nr_slot_rx + dlsch[0].dlsch_config.k1_feedback) % ue->frame_parms.slots_per_frame;
-  send_slot_ind(ue->tx_resume_ind_fifo[ack_nack_slot], proc->nr_slot_rx);
+  if (dlsch[0].rnti_type != _SI_RNTI_)
+    send_slot_ind(&ue->tx_resume_ind_fifo[ack_nack_slot], proc->nr_slot_rx);
 
   if (ue->phy_sim_dlsch_b)
     memcpy(ue->phy_sim_dlsch_b, p_b, dlsch_bytes);
@@ -1113,7 +1108,9 @@ void pdsch_processing(PHY_VARS_NR_UE *ue,
       nr_ue_dlsch_procedures(ue, proc, dlsch, llr);
     else
       // don't wait anymore
-      send_slot_ind(ue->tx_resume_ind_fifo[(proc->nr_slot_rx + dlsch[0].dlsch_config.k1_feedback) % ue->frame_parms.slots_per_frame], proc->nr_slot_rx);
+      send_slot_ind(
+          &ue->tx_resume_ind_fifo[(proc->nr_slot_rx + dlsch[0].dlsch_config.k1_feedback) % ue->frame_parms.slots_per_frame],
+          proc->nr_slot_rx);
 
     stop_meas(&ue->dlsch_procedures_stat);
     if (cpumeas(CPUMEAS_GETSTATE)) {
@@ -1214,11 +1211,7 @@ void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc) {
   int gNB_id = proc->gNB_id;
   int frame_tx = proc->frame_tx, nr_slot_tx = proc->nr_slot_tx, prach_power; // tx_amp
   uint8_t mod_id = ue->Mod_id;
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_UE_TX_PRACH, VCD_FUNCTION_IN);
-
   if (ue->prach_vars[gNB_id]->active) {
-
     fapi_nr_ul_config_prach_pdu *prach_pdu = &ue->prach_vars[gNB_id]->prach_pdu;
     ue->tx_power_dBm[nr_slot_tx] = prach_pdu->prach_tx_power;
 
@@ -1231,9 +1224,6 @@ void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc) {
           ue->tx_power_dBm[nr_slot_tx]);
 
     ue->prach_vars[gNB_id]->amp = AMP;
-
-    VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_GENERATE_PRACH, VCD_FUNCTION_IN);
-
     prach_power = generate_nr_prach(ue, gNB_id, frame_tx, nr_slot_tx);
 
     VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_GENERATE_PRACH, VCD_FUNCTION_OUT);
@@ -1249,7 +1239,4 @@ void nr_ue_prach_procedures(PHY_VARS_NR_UE *ue, const UE_nr_rxtx_proc_t *proc) {
 
     ue->prach_vars[gNB_id]->active = false;
   }
-
-  VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_PHY_PROCEDURES_UE_TX_PRACH, VCD_FUNCTION_OUT);
-
 }

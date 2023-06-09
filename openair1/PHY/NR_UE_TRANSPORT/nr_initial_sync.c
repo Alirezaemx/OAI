@@ -568,7 +568,6 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
                                                 dlsch[0].dlsch_config.qamModOrder,
                                                 dlsch[0].Nl);
           int16_t* llr[2];
-          int16_t* layer_llr[NR_MAX_NB_LAYERS];
           llr[0] = (int16_t *)malloc16_clear(rx_llr_size*sizeof(int16_t));
 
           int ret = nr_ue_pdsch_procedures(ue,
@@ -585,8 +584,6 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
           // deactivate dlsch once dlsch proc is done
           dlsch[0].active = 0;
           free(llr[0]);
-          for (int i=0; i<NR_MAX_NB_LAYERS; i++)
-            free(layer_llr[i]);
         }
       }
     }

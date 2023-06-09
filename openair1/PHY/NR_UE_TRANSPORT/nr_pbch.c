@@ -403,7 +403,6 @@ bool nr_rx_pbch(PHY_VARS_NR_UE *ue,
   uint8_t Lmax=frame_parms->Lmax;
   //uint16_t crc;
   //unsigned short idx_demod =0;
-  uint32_t decoderState=0;
   //uint8_t decoderListSize = 8, pathMetricAppr = 0;
   //time_stats_t polar_decoder_init,polar_rate_matching,decoding,bit_extraction,deinterleaving;
   //time_stats_t path_metric,sorting,update_LLR;
@@ -506,11 +505,11 @@ bool nr_rx_pbch(PHY_VARS_NR_UE *ue,
 		       0, 0,  pbch_a_prime, &pbch_a_interleaved);
   //polar decoding de-rate matching
   uint64_t tmp=0;
-  decoderState = polar_decoder_int16(pbch_e_rx,(uint64_t *)&tmp,0,
+  uint32_t decoderState= polar_decoder_int16(pbch_e_rx,&tmp,0,
                                      NR_POLAR_PBCH_MESSAGE_TYPE, NR_POLAR_PBCH_PAYLOAD_BITS, NR_POLAR_PBCH_AGGREGATION_LEVEL);
   pbch_a_prime = tmp;
 
-  nr_downlink_indication_t dl_indication;
+nr_downlink_indication_t dl_indication={0};
   fapi_nr_rx_indication_t rx_ind = {0};
   uint16_t number_pdus = 1;
 
