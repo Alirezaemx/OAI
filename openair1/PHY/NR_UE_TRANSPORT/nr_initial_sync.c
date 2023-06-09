@@ -100,11 +100,14 @@ void free_list(NR_UE_SSB *node) {
   free(node);
 }
 
-
-int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_initial_symbol, nr_phy_data_t *phy_data, c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+static bool nr_pbch_detection(UE_nr_rxtx_proc_t *proc,
+                              PHY_VARS_NR_UE *ue,
+                              int pbch_initial_symbol,
+                              nr_phy_data_t *phy_data,
+                              c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
 {
   NR_DL_FRAME_PARMS *frame_parms=&ue->frame_parms;
-  int ret =-1;
+  int ret = false;
 
   NR_UE_SSB *best_ssb = NULL;
   NR_UE_SSB *current_ssb;
@@ -137,8 +140,7 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_ini
   }
 
   NR_UE_SSB *temp_ptr=best_ssb;
-  while (ret!=0 && temp_ptr != NULL) {
-
+  while (!ret && temp_ptr != NULL) {
     start_meas(&ue->dlsch_channel_estimation_stats);
   // computing channel estimation for selected best ssb
     const int estimateSz = frame_parms->symbols_per_slot * frame_parms->ofdm_symbol_size;
@@ -162,7 +164,7 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_ini
                      &result,
                      rxdataF);
 
-    if (DUMP_PBCH_CH_ESTIMATES && (ret == 0)) {
+    if (DUMP_PBCH_CH_ESTIMATES && ret) {
       write_output("pbch_ch_estimates.m", "pbch_ch_estimates", dl_ch_estimates, frame_parms->nb_antennas_rx*estimateSz, 1, 1);
       write_output("pbch_ch_estimates_time.m", "pbch_ch_estimates_time", dl_ch_estimates_time, frame_parms->nb_antennas_rx*frame_parms->ofdm_symbol_size, 1, 1);
     }
@@ -172,9 +174,7 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_ini
 
   free_list(best_ssb);
 
-  
-  if (ret==0) {
-    
+  if (ret) {
     frame_parms->nb_antenna_ports_gNB = 1; //pbch_tx_ant;
     
     // set initial transmission mode to 1 or 2 depending on number of detected TX antennas
@@ -185,11 +185,8 @@ int nr_pbch_detection(UE_nr_rxtx_proc_t * proc, PHY_VARS_NR_UE *ue, int pbch_ini
 #ifdef DEBUG_INITIAL_SYNCH
     LOG_I(PHY,"[UE%d] Initial sync: pbch decoded sucessfully\n",ue->Mod_id);
 #endif
-    return(0);
-  } else {
-    return(-1);
   }
-
+  return ret;
 }
 
 char duplex_string[2][4] = {"FDD","TDD"};
@@ -204,7 +201,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
   int is;
 
   NR_DL_FRAME_PARMS *fp = &ue->frame_parms;
-  nr_initial_sync_t ret = {-1, 0};
+  nr_initial_sync_t ret = {false, 0};
   int rx_power=0; //aarx,
 
   nr_phy_data_t phy_data = {0};
@@ -301,7 +298,6 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
 
       int freq_offset_sss = 0;
       ret.cell_detected = rx_sss_nr(ue, proc, &metric_tdd_ncp, &phase_tdd_ncp, &freq_offset_sss, rxdataF);
-
       // digital compensation of FFO for SSB symbols
       if (ue->UE_fo_compensation){
         double s_time = 1/(1.0e3*fp->samples_per_subframe);  // sampling time
@@ -328,12 +324,12 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
         ue->common_vars.freq_offset += freq_offset_sss;
       }
 
-      if (ret.cell_detected == 0) { // we got sss channel
+      if (ret.cell_detected) { // we got sss channel
         nr_gold_pbch(ue);
         ret.cell_detected = nr_pbch_detection(proc, ue, 1, &phy_data, rxdataF); // start pbch detection at first symbol after pss
       }
 
-      if (ret.cell_detected == 0) {
+      if (ret.cell_detected) {
         // sync at symbol ue->symbol_offset
         // computing the offset wrt the beginning of the frame
         int mu = fp->numerology_index;
@@ -403,12 +399,12 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
        LOG_I(PHY,"TDD Normal prefix: SSS error condition: sync_pos %d\n", sync_pos);
 #endif
       }
-      if (ret.cell_detected == 0)
+      if (ret.cell_detected)
         break;
     }
   }
   else {
-    ret.cell_detected = -1;
+    ret.cell_detected = false;
   }
 
   /* Consider this is a false detection if the offset is > 1000 Hz 
@@ -419,7 +415,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
 	  LOG_E(HW, "Ignore MIB with high freq offset [%d Hz] estimation \n",ue->common_vars.freq_offset);
   }*/
 
-  if (ret.cell_detected == 0) { // PBCH found so indicate sync to higher layers and configure frame parameters
+  if (ret.cell_detected) { // PBCH found so indicate sync to higher layers and configure frame parameters
 
     //#ifdef DEBUG_INITIAL_SYNCH
 
@@ -457,7 +453,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
   }
 
   // gain control
-  if (ret.cell_detected != 0) { // we are not synched, so we cannot use rssi measurement (which is based on channel estimates)
+  if (!ret.cell_detected) { // we are not synched, so we cannot use rssi measurement (which is based on channel estimates)
     rx_power = 0;
 
     // do a measurement on the best guess of the PSS
@@ -508,7 +504,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
   }
 
   // if stand alone and sync on ssb do sib1 detection as part of initial sync
-  if (sa == 1 && ret.cell_detected == 0) {
+  if (sa == 1 && ret.cell_detected) {
     nr_ue_dlsch_init(phy_data.dlsch, 1, ue->max_ldpc_iterations);
     bool dec = false;
     proc->gNB_id = 0; //FIXME
@@ -595,7 +591,7 @@ nr_initial_sync_t nr_initial_sync(UE_nr_rxtx_proc_t *proc, PHY_VARS_NR_UE *ue, i
       }
     }
     if (dec == false) // sib1 not decoded
-      ret.cell_detected = -1;
+      ret.cell_detected = false;
   }
   //  exit_fun("debug exit");
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_NR_INITIAL_UE_SYNC, VCD_FUNCTION_OUT);

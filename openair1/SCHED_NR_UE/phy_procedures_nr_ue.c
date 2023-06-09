@@ -359,14 +359,13 @@ void nr_ue_measurement_procedures(uint16_t l,
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_MEASUREMENT_PROCEDURES, VCD_FUNCTION_OUT);
 }
 
-static int nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
-                                 UE_nr_rxtx_proc_t *proc,
-                                 int estimateSz,
-                                 struct complex16 dl_ch_estimates[][estimateSz],
-                                 nr_phy_data_t *phy_data,
-                                 c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP]) {
-
-  int ret = 0;
+static bool nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
+                                  UE_nr_rxtx_proc_t *proc,
+                                  int estimateSz,
+                                  struct complex16 dl_ch_estimates[][estimateSz],
+                                  nr_phy_data_t *phy_data,
+                                  c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+{
   DevAssert(ue);
 
   int frame_rx = proc->frame_rx;
@@ -377,19 +376,18 @@ static int nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
 
   LOG_D(PHY,"[UE  %d] Frame %d Slot %d, Trying PBCH (NidCell %d, gNB_id %d)\n",ue->Mod_id,frame_rx,nr_slot_rx,ue->frame_parms.Nid_cell,gNB_id);
   fapiPbch_t result;
-  ret = nr_rx_pbch(ue,
-                   proc,
-                   estimateSz,
-                   dl_ch_estimates,
-                   &ue->frame_parms,
-                   (ue->frame_parms.ssb_index)&7,
-                   SISO,
-                   phy_data,
-                   &result,
-                   rxdataF);
+  int ret = nr_rx_pbch(ue,
+                       proc,
+                       estimateSz,
+                       dl_ch_estimates,
+                       &ue->frame_parms,
+                       (ue->frame_parms.ssb_index) & 7,
+                       SISO,
+                       phy_data,
+                       &result,
+                       rxdataF);
 
-  if (ret==0) {
-
+  if (ret) {
 #ifdef DEBUG_PHY_PROC
     uint16_t frame_tx;
     LOG_D(PHY,"[UE %d] frame %d, nr_slot_rx %d, Received PBCH (MIB): frame_tx %d. N_RB_DL %d\n",
@@ -424,15 +422,12 @@ static int nr_ue_pbch_procedures(PHY_VARS_NR_UE *ue,
       write_output("rxsigF0.m","rxsF0", ue->common_vars.rxdataF[0],8*ue->frame_parms.ofdm_symbol_size,1,1);
       exit(-1);
     */
-
   }
 
  return ret;
 
   VCD_SIGNAL_DUMPER_DUMP_FUNCTION_BY_NAME(VCD_SIGNAL_DUMPER_FUNCTIONS_UE_PBCH_PROCEDURES, VCD_FUNCTION_OUT);
 }
-
-
 
 unsigned int nr_get_tx_amp(int power_dBm, int power_max_dBm, int N_RB_UL, int nb_rb)
 {
@@ -940,7 +935,7 @@ int pbch_pdcch_processing(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, nr_phy_da
             LOG_D(PHY," ------  Decode MIB: frame.slot %d.%d ------  \n", frame_rx%1024, nr_slot_rx);
             const int pbchSuccess = nr_ue_pbch_procedures(ue, proc, estimateSz, dl_ch_estimates, phy_data, rxdataF);
 
-            if (ue->no_timing_correction==0 && pbchSuccess == 0) {
+            if (ue->no_timing_correction == 0 && pbchSuccess) {
               LOG_D(PHY,"start adjust sync slot = %d no timing %d\n", nr_slot_rx, ue->no_timing_correction);
               sampleShift =
                   nr_adjust_synch_ue(fp, ue, gNB_id, fp->ofdm_symbol_size, dl_ch_estimates_time, frame_rx, nr_slot_rx, 0, 16384);

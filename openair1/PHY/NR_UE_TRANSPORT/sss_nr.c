@@ -353,19 +353,23 @@ static int pss_sss_extract_nr(PHY_VARS_NR_UE *phy_vars_ue,
 }
 
 /*******************************************************************
-*
-* NAME :         rx_sss_nr
-*
-* PARAMETERS :   none
-*
-* RETURN :       Set Nid_cell in ue context
-*
-* DESCRIPTION :  Determine element Nid1 of cell identity
-*                so Nid_cell in ue context is set according to Nid1 & Nid2
-*
-*********************************************************************/
-
-int rx_sss_nr(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, int32_t *tot_metric, uint8_t *phase_max, int *freq_offset_sss, c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
+ *
+ * NAME :         rx_sss_nr
+ *
+ * PARAMETERS :   none
+ *
+ * RETURN :       Set Nid_cell in ue context, return true if cell detected
+ *
+ * DESCRIPTION :  Determine element Nid1 of cell identity
+ *                so Nid_cell in ue context is set according to Nid1 & Nid2
+ *
+ *********************************************************************/
+bool rx_sss_nr(PHY_VARS_NR_UE *ue,
+               UE_nr_rxtx_proc_t *proc,
+               int32_t *tot_metric,
+               uint8_t *phase_max,
+               int *freq_offset_sss,
+               c16_t rxdataF[][ue->frame_parms.samples_per_slot_wCP])
 {
   uint8_t i;
   c16_t pss_ext[NB_ANTENNAS_RX][LENGTH_PSS_NR];
@@ -504,13 +508,13 @@ int rx_sss_nr(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, int32_t *tot_metric, 
   //#endif
 
   if (Nid1==N_ID_1_NUMBER)
-    return -1;
-  
+    return false;
+
   int re = 0;
   int im = 0;
   if (Nid1 == N_ID_1_NUMBER) {
     LOG_I(PHY,"Failed to detect SSS after PSS\n");
-    return -1;
+    return false;
   }
   d = (int16_t *)&d_sss[Nid2][Nid1];
   for(i = 0; i<LENGTH_SSS_NR; i++) {
@@ -524,5 +528,5 @@ int rx_sss_nr(PHY_VARS_NR_UE *ue, UE_nr_rxtx_proc_t *proc, int32_t *tot_metric, 
   LOG_I(NR_PHY, "ffo_pss %f (%i Hz), ffo_sss %f (%i Hz),  ffo_pss+ffo_sss %f (%i Hz)\n",
          ffo_pss, (int)(ffo_pss*frame_parms->subcarrier_spacing), ffo_sss, *freq_offset_sss, ffo_pss+ffo_sss, (int)((ffo_pss+ffo_sss)*frame_parms->subcarrier_spacing));
 
-  return(0);
+  return true;
 }
