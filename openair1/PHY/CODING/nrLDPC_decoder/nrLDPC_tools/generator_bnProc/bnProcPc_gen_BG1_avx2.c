@@ -70,7 +70,7 @@ void nrLDPC_bnProcPc_BG1_generator_AVX2(const char *dir, int R)
       lut_startAddrBnGroups = lut_startAddrBnGroups_BG1_R89;
       lut_startAddrBnGroupsLlr = lut_startAddrBnGroupsLlr_BG1_R89;
     }
-    else { printf("aborting, illegal R %d\n",R); fclose(fd);abort();}
+  else { printf("aborting, illegal R %d\n",R); fclose(fd);abort();}
         // Number of BNs in Groups
 //    uint32_t M;
     //uint32_t M32rem;
@@ -106,7 +106,7 @@ fprintf(fd,  "// Process group with 2 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[1] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[1]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[1]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -150,7 +150,7 @@ fprintf(fd,  "// Process group with 3 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[2] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[2]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[2]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -165,7 +165,7 @@ fprintf(fd,  "// Process group with 3 CNs \n");
         for (k=1; k<3; k++)
         {
         fprintf(fd,"            p_llrRes[i] = simde_mm256_adds_epi8(p_llrRes[i], p_bnProcBuf[%u + i]);\n",k*cnOffsetInGroup);
-        }
+            }
 
             // Add LLR from receiver input
         fprintf(fd,"            p_llrRes[i] = simde_mm256_adds_epi8(p_llrRes[i], p_llrProcBuf[i]);\n");
@@ -194,7 +194,7 @@ fprintf(fd,  "// Process group with 4 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[3] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[3]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[3]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -220,12 +220,12 @@ fprintf(fd,  "// Process group with 4 CNs \n");
     }
 
 
-    // =====================================================================
+   // =====================================================================
     // Process group with 5 CNs
 
-    fprintf(fd,  "// Process group with 5 CNs \n");
+fprintf(fd,  "// Process group with 5 CNs \n");
 
-    // Process group with 5 CNs
+ // Process group with 5 CNs
 
     if (lut_numBnInBnGroups[4] > 0)
     {
@@ -236,7 +236,7 @@ fprintf(fd,  "// Process group with 4 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[4] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[4]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[4]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -279,7 +279,7 @@ fprintf(fd,  "// Process group with 6 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[5] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[5]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[5]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -321,7 +321,7 @@ fprintf(fd,  "// Process group with 7 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[6] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[6]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[6]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -342,7 +342,7 @@ fprintf(fd,  "// Process group with 7 CNs \n");
         fprintf(fd,"            p_llrRes[i] = simde_mm256_adds_epi8(p_llrRes[i], p_llrProcBuf[i]);\n");
 
         fprintf(fd,"}\n");
-   }
+    }
    // =====================================================================
     // Process group with 8 CNs
 
@@ -359,7 +359,7 @@ fprintf(fd,  "// Process group with 8 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[7] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[7]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[7]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -401,7 +401,7 @@ fprintf(fd,  "// Process group with 9 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[8] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[8]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[8]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -442,7 +442,7 @@ fprintf(fd,  "// Process group with 10 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[9] );
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[9]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[9]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -487,7 +487,7 @@ fprintf(fd,  "// Process group with 11 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[10] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[10]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[10]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -528,7 +528,7 @@ fprintf(fd,  "// Process group with 12 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[11] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[11]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[11]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -570,7 +570,7 @@ fprintf(fd,  "// Process group with 13 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[12] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[12]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[12]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -585,7 +585,7 @@ fprintf(fd,  "// Process group with 13 CNs \n");
         for (k=1; k<13; k++)
         {
         fprintf(fd,"            p_llrRes[i] = simde_mm256_adds_epi8(p_llrRes[i], p_bnProcBuf[%u + i]);\n",k*cnOffsetInGroup);
-        }
+            }
 
             // Add LLR from receiver input
         fprintf(fd,"            p_llrRes[i] = simde_mm256_adds_epi8(p_llrRes[i], p_llrProcBuf[i]);\n");
@@ -613,7 +613,7 @@ fprintf(fd,  "// Process group with 14 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[13] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[13]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[13]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -655,7 +655,7 @@ fprintf(fd,  "// Process group with 15 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[14] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[14]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[14]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -698,7 +698,7 @@ fprintf(fd,  "// Process group with 16 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[15] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[15]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[15]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -740,7 +740,7 @@ fprintf(fd,  "// Process group with 17 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[16] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[16]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[16]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -782,7 +782,7 @@ fprintf(fd,  "// Process group with 18 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[17] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[17]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[17]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -822,7 +822,7 @@ fprintf(fd,  "// Process group with 19 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[18] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[18]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[18]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -864,7 +864,7 @@ fprintf(fd,  "// Process group with 20 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[19] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[19]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[19]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -910,7 +910,7 @@ fprintf(fd,  "// Process group with 21 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[20] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[20]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[20]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -951,7 +951,7 @@ fprintf(fd,  "// Process group with 22 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[21] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[21]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[21]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -993,7 +993,7 @@ fprintf(fd,  "// Process group with <23 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[22] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[22]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[22]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1036,7 +1036,7 @@ fprintf(fd,  "// Process group with 24 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[23] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[23]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[23]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1078,7 +1078,7 @@ fprintf(fd,  "// Process group with 25 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[24] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[24]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[24]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1121,7 +1121,7 @@ fprintf(fd,  "// Process group with 26 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[25] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[25]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[25]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1163,7 +1163,7 @@ fprintf(fd,  "// Process group with 27 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[26] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[26]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[26]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1205,7 +1205,7 @@ fprintf(fd,  "// Process group with 28 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[27] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[27]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[27]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1246,7 +1246,7 @@ fprintf(fd,  "// Process group with 29 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[28] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[28]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[28]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1288,7 +1288,7 @@ fprintf(fd,  "// Process group with 30 CNs \n");
         fprintf(fd," M = (%d*Z + 31)>>5;\n",lut_numBnInBnGroups[29] );;
 
         // Set the offset to each CN within a group in terms of 16 Byte
-        cnOffsetInGroup = (lut_numBnInBnGroups[29]*NR_LDPC_ZMAX)>>4;
+        cnOffsetInGroup = (lut_numBnInBnGroups[29]*NR_LDPC_ZMAX)>>5;
 
         // Set pointers to start of group 2
         fprintf(fd,"    p_bnProcBuf     = (simde__m256i*) &bnProcBuf    [%u];\n",lut_startAddrBnGroups[idxBnGroup]);
@@ -1314,7 +1314,7 @@ fprintf(fd,  "// Process group with 30 CNs \n");
     }
 
     fprintf(fd,"}\n");
-    fclose(fd);
+  fclose(fd);
 }//end of the function  nrLDPC_bnProcPc_BG1
 
 
