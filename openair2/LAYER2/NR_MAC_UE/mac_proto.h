@@ -437,6 +437,10 @@ static uint8_t nr_extract_dci_info(NR_UE_MAC_INST_t *mac,
                                    dci_pdu_rel15_t *dci_pdu_rel15,
                                    int slot);
 
+void configure_ss_coreset(NR_UE_MAC_INST_t *mac,
+                          NR_ServingCellConfig_t *scd,
+                          NR_BWP_Id_t dl_bwp_id);
+
 fapi_nr_ul_config_request_t *get_ul_config_request(NR_UE_MAC_INST_t *mac, int slot, int fb_time);
 fapi_nr_dl_config_request_t *get_dl_config_request(NR_UE_MAC_INST_t *mac, int slot);
 
