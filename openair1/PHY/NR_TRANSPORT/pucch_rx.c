@@ -1170,6 +1170,7 @@ void nr_decode_pucch2(PHY_VARS_gNB *gNB,
   int nb_re_pucch = 12*pucch_pdu->prb_size;
 
   int16_t rp[Prx2][2][nb_re_pucch*2],*tmp_rp;
+  memset(rp, 0, sizeof(rp));
   __m64 dmrs_re,dmrs_im;
 
   for (int aa=0;aa<Prx;aa++){
