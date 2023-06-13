@@ -1207,6 +1207,7 @@ void nr_rrc_ue_process_masterCellGroup(const protocol_ctxt_t *const ctxt_pP,
         set_default_timers_and_constants(&rrc->timers_and_constants);
       LOG_A(NR_RRC, "Received the reconfigurationWithSync in %s\n", __FUNCTION__);
       NR_ReconfigurationWithSync_t *reconfigurationWithSync = cellGroupConfig->spCellConfig->reconfigurationWithSync;
+      rrc->timers_and_constants.T304_active = true;
       nr_rrc_set_T304(&rrc->timers_and_constants, reconfigurationWithSync);
     }
 
@@ -2309,7 +2310,7 @@ void *rrc_nrue_task(void *args_p)
          break;
 
        case NRRRC_SLOT_PROCESS:
-         LOG_D(NR_RRC, "[UE %d] Receided %s: frame %d slot %d\n",
+         LOG_D(NR_RRC, "[UE %d] Received %s: frame %d slot %d\n",
                ue_mod_id, ITTI_MSG_NAME (msg_p), NRRRC_SLOT_PROCESS (msg_p).frame, NRRRC_SLOT_PROCESS (msg_p).slot);
          nr_rrc_handle_timers(ue_mod_id);
          break;
