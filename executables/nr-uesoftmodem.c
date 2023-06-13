@@ -216,10 +216,6 @@ int create_tasks_nrue(uint32_t ue_nb) {
 
   itti_wait_ready(0);
 
-  // Thread to update the RRC timers (in msec) at UE
-  pthread_t timers_update;
-  threadCreate(&timers_update, nr_rrc_timers_update, NULL, "nr_rrc_timer_update", -1, OAI_PRIORITY_RT_LOW);
-
   return 0;
 }
 
@@ -598,7 +594,7 @@ static void init_bler_table(char *env_string) {
 
   for (unsigned int i = 0; i < NR_NUM_MCS; i++) {
     char fName[1024];
-    snprintf(fName, sizeof(fName), "%s/mcs%d_awgn_5G.csv", awgn_results_dir, i);
+    snprintf(fName, sizeof(fName), "%s/mcs%u_awgn_5G.csv", awgn_results_dir, i);
     FILE *pFile = fopen(fName, "r");
     if (!pFile) {
       LOG_E(NR_MAC, "%s: open %s: %s\n", __func__, fName, strerror(errno));

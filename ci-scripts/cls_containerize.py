@@ -358,7 +358,7 @@ class Containerize():
 			self.cliBuildOptions = '--no-cache'
 		elif self.host == 'Red Hat':
 			self.cli = 'sudo podman'
-			self.dockerfileprefix = '.rhel8.2'
+			self.dockerfileprefix = '.rhel9'
 			self.cliBuildOptions = '--no-cache --disable-compression'
 
 		# we always build the ran-build image with all targets
@@ -800,7 +800,7 @@ class Containerize():
 			logging.debug('Removing test images locally')
 			myCmd = cls_cmd.LocalCmd()
 
-		imageNames = ['oai-enb', 'oai-gnb', 'oai-lte-ue', 'oai-nr-ue', 'oai-lte-ru', 'oai-nr-cuup']
+		imageNames = ['oai-enb', 'oai-gnb', 'oai-lte-ue', 'oai-nr-ue', 'oai-lte-ru', 'oai-nr-cuup', 'oai-gnb-aw2s']
 		for image in imageNames:
 			imageTag = ImageTagToUse(image, self.ranCommitID, self.ranBranch, self.ranAllowMerge)
 			cmd = f'docker rmi oai-ci/{imageTag}'
