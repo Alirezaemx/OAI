@@ -1732,6 +1732,7 @@ static void nr_generate_Msg3_dcch_dtch_response(module_id_t module_idP,
   }
 
   // Remove UE associated to TC-RNTI
+  // why?
   mac_remove_nr_ue(nr_mac, ra->rnti);
 
 
