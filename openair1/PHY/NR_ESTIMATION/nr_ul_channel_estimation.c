@@ -42,45 +42,6 @@
 #define NO_INTERP 1
 #define dBc(x,y) (dB_fixed(((int32_t)(x))*(x) + ((int32_t)(y))*(y)))
 
-void freq2time(uint16_t ofdm_symbol_size,
-               int16_t *freq_signal,
-               int16_t *time_signal) {
-
-  switch (ofdm_symbol_size) {
-    case 128:
-      idft(IDFT_128, freq_signal, time_signal, 1);
-      break;
-    case 256:
-      idft(IDFT_256, freq_signal, time_signal, 1);
-      break;
-    case 512:
-      idft(IDFT_512, freq_signal, time_signal, 1);
-      break;
-    case 1024:
-      idft(IDFT_1024, freq_signal, time_signal, 1);
-      break;
-    case 1536:
-      idft(IDFT_1536, freq_signal, time_signal, 1);
-      break;
-    case 2048:
-      idft(IDFT_2048, freq_signal, time_signal, 1);
-      break;
-    case 4096:
-      idft(IDFT_4096, freq_signal, time_signal, 1);
-      break;
-    case 6144:
-      idft(IDFT_6144, freq_signal, time_signal, 1);
-      break;
-    case 8192:
-      idft(IDFT_8192, freq_signal, time_signal, 1);
-      break;
-    default:
-      idft(IDFT_512, freq_signal, time_signal, 1);
-      break;
-  }
-}
-
-
 __attribute__((always_inline)) inline c16_t c32x16cumulVectVectWithSteps(c16_t *in1,
                                                                          int *offset1,
                                                                          const int step1,
@@ -194,7 +155,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
   uint64_t noise_amp2 = 0;
   c16_t ul_ls_est[symbolSize] __attribute__((aligned(32)));
   memset(ul_ls_est, 0, sizeof(c16_t) * symbolSize);
-  NR_ULSCH_delay_t *delay = &gNB->ulsch[ul_id].delay;
+  NR_delay_t *delay = &gNB->ulsch[ul_id].delay;
   memset(delay, 0, sizeof(*delay));
 
   for (int aarx=0; aarx<gNB->frame_parms.nb_antennas_rx; aarx++) {
@@ -239,7 +200,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
       freq2time(symbolSize, (int16_t *)ul_ls_est, (int16_t *)pusch_vars->ul_ch_estimates_time[aarx]);
 
       nr_est_timing_advance_pusch(&gNB->frame_parms, pusch_vars->ul_ch_estimates_time[aarx], delay);
-      int pusch_delay = delay->pusch_est_delay;
+      int pusch_delay = delay->est_delay;
       int delay_idx = get_delay_idx(pusch_delay);
       c16_t *ul_delay_table = gNB->frame_parms.ul_delay_table[delay_idx];
 
@@ -325,7 +286,7 @@ int nr_pusch_channel_estimation(PHY_VARS_gNB *gNB,
       // Delay compensation
       freq2time(symbolSize, (int16_t *)ul_ls_est, (int16_t *)pusch_vars->ul_ch_estimates_time[aarx]);
       nr_est_timing_advance_pusch(&gNB->frame_parms, pusch_vars->ul_ch_estimates_time[aarx], delay);
-      int pusch_delay = delay->pusch_est_delay;
+      int pusch_delay = delay->est_delay;
       int delay_idx = get_delay_idx(-pusch_delay);
       c16_t *ul_delay_table = gNB->frame_parms.ul_delay_table[delay_idx];
       for (int n = 0; n < nb_rb_pusch * NR_NB_SC_PER_RB; n++) {
