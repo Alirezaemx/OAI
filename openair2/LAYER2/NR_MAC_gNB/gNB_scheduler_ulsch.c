@@ -225,7 +225,8 @@ static int nr_process_mac_pdu(instance_t module_idP,
           if (ra->state >= WAIT_Msg3 && ra->rnti == UE->rnti) {
             ra->crnti = ((pduP[1]&0xFF)<<8)|(pduP[2]&0xFF);
             ra->state = Msg3_dcch_dtch;
-            LOG_I(NR_MAC, "Received UL_SCH_LCID_C_RNTI with C-RNTI 0x%04x\n", ra->crnti);
+            LOG_I(NR_MAC, "Received UL_SCH_LCID_C_RNTI with C-RNTI 0x%04x, triggering reconfiguration\n", ra->crnti);
+            nr_mac_trigger_reconfiguration(RC.nrmac[module_idP], UE);
             break;
           }
         }
