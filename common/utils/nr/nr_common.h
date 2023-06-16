@@ -118,7 +118,11 @@ int get_ssb_subcarrier_offset(uint32_t absoluteFrequencySSB, uint32_t absoluteFr
 void freq2time(uint16_t ofdm_symbol_size,
                int16_t *freq_signal,
                int16_t *time_signal);
-
+int get_delay_idx(int delay, int max_delay_comp);
+void init_delay_table(uint16_t ofdm_symbol_size,
+                      int max_ofdm_symbol_size,
+                      int max_delay_comp,
+                      c16_t delay_table[2 * max_delay_comp + 1][max_ofdm_symbol_size * 2]);
 
 #define CEILIDIV(a,b) ((a+b-1)/b)
 #define ROUNDIDIV(a,b) (((a<<1)+b)/(b<<1))

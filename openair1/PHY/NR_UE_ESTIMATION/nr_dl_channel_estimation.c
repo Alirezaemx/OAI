@@ -1276,6 +1276,7 @@ void NFAPI_NR_DMRS_TYPE1_linear_interp(NR_DL_FRAME_PARMS *frame_parms,
                                        int8_t delta,
                                        NR_delay_t *delay)
 {
+  c16_t *dl_ch0 = dl_ch;
   int re_offset = bwp_start_subcarrier % frame_parms->ofdm_symbol_size;
 
   c16_t dl_ls_est[frame_parms->ofdm_symbol_size] __attribute__((aligned(32)));
@@ -1308,18 +1309,33 @@ void NFAPI_NR_DMRS_TYPE1_linear_interp(NR_DL_FRAME_PARMS *frame_parms,
   }
 
   nr_est_delay_pdsch(frame_parms, dl_ls_est, delay);
+  int delay_idx = get_delay_idx(delay->est_delay, MAX_DELAY_COMP);
+  c16_t *dl_delay_table = frame_parms->delay_table[delay_idx];
 
   for (int pilot_cnt = 0; pilot_cnt < 6 * nb_rb_pdsch; pilot_cnt++) {
+
+    // Apply delay
+    int k = pilot_cnt << 1;
+    c16_t ch = c16mulShift(dl_ls_est[k], dl_delay_table[k], 8);
+
     if (pilot_cnt == 0) { // Treat first pilot
-      c16multaddVectRealComplex(filt16_dl_first, &dl_ls_est[pilot_cnt << 1], dl_ch, 16);
+      c16multaddVectRealComplex(filt16_dl_first, &ch, dl_ch, 16);
     } else if (pilot_cnt == 6 * nb_rb_pdsch - 1) { // Treat last pilot
-      c16multaddVectRealComplex(filt16_dl_last, &dl_ls_est[pilot_cnt << 1], dl_ch, 16);
+      c16multaddVectRealComplex(filt16_dl_last, &ch, dl_ch, 16);
     } else { // Treat middle pilots
-      c16multaddVectRealComplex(filt16_dl_middle, &dl_ls_est[pilot_cnt << 1], dl_ch, 16);
+      c16multaddVectRealComplex(filt16_dl_middle, &ch, dl_ch, 16);
       if (pilot_cnt % 2 == 0) {
-      dl_ch += 4;
+        dl_ch += 4;
       }
     }
+  }
+
+  // Revert delay
+  dl_ch = dl_ch0;
+  int inv_delay_idx = get_delay_idx(-delay->est_delay, MAX_DELAY_COMP);
+  c16_t *dl_inv_delay_table = frame_parms->delay_table[inv_delay_idx];
+  for (int k = 0; k < 12 * nb_rb_pdsch; k++) {
+    dl_ch[k] = c16mulShift(dl_ch[k], dl_inv_delay_table[k], 8);
   }
 }
 

@@ -33,6 +33,7 @@
 #include <stdint.h>
 #include "assertions.h"
 #include "nr_common.h"
+#include <complex.h>
 
 const char *duplex_mode[]={"FDD","TDD"};
 
@@ -769,5 +770,32 @@ void freq2time(uint16_t ofdm_symbol_size,
     default:
       idft(IDFT_512, freq_signal, time_signal, 1);
       break;
+  }
+}
+
+int get_delay_idx(int delay, int max_delay_comp) {
+  int delay_idx = max_delay_comp + delay;
+  // If the measured delay is less than -MAX_DELAY_COMP, a -MAX_DELAY_COMP delay is compensated.
+  if (delay_idx < 0) {
+    delay_idx = 0;
+  }
+  // If the measured delay is greater than +MAX_DELAY_COMP, a +MAX_DELAY_COMP delay is compensated.
+  if (delay_idx > max_delay_comp<<1) {
+    delay_idx = max_delay_comp<<1;
+  }
+  return delay_idx;
+}
+
+void init_delay_table(uint16_t ofdm_symbol_size,
+                      int max_ofdm_symbol_size,
+                      int max_delay_comp,
+                      c16_t delay_table[2 * max_delay_comp + 1][max_ofdm_symbol_size * 2])
+{
+  for (int delay = -max_delay_comp; delay <= max_delay_comp; delay++) {
+    for (int k = 0; k < ofdm_symbol_size; k++) {
+      double complex delay_cexp = cexp(I * (2.0 * M_PI * k * delay / ofdm_symbol_size));
+      delay_table[max_delay_comp + delay][k].r = (int16_t)round(256 * creal(delay_cexp));
+      delay_table[max_delay_comp + delay][k].i = (int16_t)round(256 * cimag(delay_cexp));
+    }
   }
 }

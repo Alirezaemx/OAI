@@ -695,6 +695,7 @@ void init_N_TA_offset(PHY_VARS_NR_UE *ue){
 
 void phy_init_nr_top(PHY_VARS_NR_UE *ue) {
   NR_DL_FRAME_PARMS *frame_parms = &ue->frame_parms;
+  init_delay_table(frame_parms->ofdm_symbol_size, NR_MAX_OFDM_SYMBOL_SIZE, MAX_DELAY_COMP, frame_parms->delay_table);
   crcTableInit();
   init_scrambling_luts();
   load_dftslib();
