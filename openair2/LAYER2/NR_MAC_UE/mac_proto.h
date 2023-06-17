@@ -428,7 +428,7 @@ void build_ssb_to_ro_map(NR_UE_MAC_INST_t *mac);
 
 void ue_init_config_request(NR_UE_MAC_INST_t *mac, int scs);
 
-static uint8_t nr_extract_dci_info(NR_UE_MAC_INST_t *mac,
+uint8_t nr_extract_dci_info(NR_UE_MAC_INST_t *mac,
                                    nr_dci_format_t dci_format,
                                    uint8_t dci_size,
                                    uint16_t rnti,
